@@ -1,0 +1,78 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+web-build/
+build/
+.expo/
+.metro-health-check*
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local environment files
+*.local
+.env
+.env*.local
+
+# Editor and operating system files
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# TypeScript
+*.tsbuildinfo
+
+# Expo and Metro
+expo-env.d.ts
+
+# Native build and local configuration
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+local.properties
+*.iml
+*.hprof
+.cxx/
+app/src/main/java/inline/
+
+# Android
+.gradle/
+
+# Apple/Xcode
+DerivedData/
+xcuserdata/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+project.xcworkspace
+.xcode.env.local
+/Pods/
+
+# Bundle artifacts
+*.jsbundle
