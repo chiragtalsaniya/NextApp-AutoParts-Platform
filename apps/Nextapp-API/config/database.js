@@ -38,7 +38,7 @@ export const connectDB = async () => {
 
     connection.release();
 
-    const { runMigrations } = await import('../migrations/init-database.js');
+    const { runMigrations } = await import('../../../database/mysql/init-database.js');
     await runMigrations();
 
   } catch (error) {

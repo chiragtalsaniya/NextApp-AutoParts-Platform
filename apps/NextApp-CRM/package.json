@@ -13,6 +13,7 @@
     "dev:full": "concurrently \"npm run dev\" \"npm run server\""
   },
   "dependencies": {
+    "@nextapp/shared-types": "*",
     "@types/react-tooltip": "^3.11.0",
     "axios": "^1.6.0",
     "date-fns": "^3.0.6",

@@ -2,7 +2,7 @@
 
 A comprehensive auto parts dealer management system with CRM functionality and mobile app support.
 
-For an overview of the project structure, see [docs/architecture.md](docs/architecture.md).
+For an overview of the project structure, see [docs/architecture.md](../../docs/architecture.md).
 
 ## 🚀 Features
 
@@ -61,9 +61,9 @@ For an overview of the project structure, see [docs/architecture.md](docs/archit
 CREATE DATABASE nextapp_crm;
 ```
 
-2. Run the database schema:
+2. Run the database initializer from the repository root:
 ```bash
-mysql -u root -p nextapp_crm < server/config/database-schema.sql
+npm run migrate --workspace=apps/Nextapp-API
 ```
 
 ### Backend Setup
@@ -89,12 +89,7 @@ PORT=3001
 NODE_ENV=development
 ```
 
-4. Run database migrations (this will also insert sample data):
-```bash
-cd server && npm run migrate
-```
-
-5. Start the backend server:
+4. Start the backend server:
 ```bash
 npm run server
 ```
@@ -267,7 +262,7 @@ This project is proprietary software for NextApp Inc.
 For support and questions:
 - Email: support@nextapp.com
 - Documentation: [API Docs](http://localhost:3001/api/health)
-- API Reference: [docs/api-endpoints.md](docs/api-endpoints.md)
+- API Reference: [docs/api-endpoints.md](../../docs/api-endpoints.md)
 - Issues: Create GitHub issue
 
 ---
