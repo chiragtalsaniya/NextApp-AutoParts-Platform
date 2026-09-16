@@ -7,8 +7,8 @@ Review the entire NextApp Auto Parts monorepo before making changes.
 
 Applications:
 - apps/NextApp-CRM: React CRM administration portal
-- apps/Nextapp-Mobile: Expo React Native mobile app
-- apps/Nextapp-API: Node.js/Express API
+- apps/NextApp-Mobile: Expo React Native mobile app
+- apps/NextApp-API: Node.js/Express API
 - packages/shared-types: shared API contracts
 
 First:

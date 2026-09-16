@@ -1,4 +1,4 @@
-import { pool } from '../../apps/Nextapp-API/config/database.js';
+import { pool } from '../../apps/NextApp-API/config/database.js';
 import bcrypt from 'bcryptjs';
 
 export const runMigrations = async () => {
