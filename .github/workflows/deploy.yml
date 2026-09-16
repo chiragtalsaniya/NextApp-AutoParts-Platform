@@ -1,0 +1,81 @@
+name: Deploy to Linux server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 20
+  DEPLOY_PATH: /var/www/nextapp-autoparts
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build CRM
+        env:
+          VITE_API_URL: https://yogrind.shop/api
+          VITE_APP_NAME: NextApp Auto Parts CMS
+          VITE_APP_VERSION: ${{ github.sha }}
+        run: npm run build --workspace=apps/NextApp-CRM
+
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust deployment host
+        run: ssh-keyscan -p "${{ secrets.DEPLOY_PORT || 22 }}" -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Prepare server directory
+        run: |
+          ssh -p "${{ secrets.DEPLOY_PORT || 22 }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "mkdir -p '${{ env.DEPLOY_PATH }}'"
+
+      - name: Upload application
+        run: |
+          rsync -az --delete \
+            -e "ssh -p ${{ secrets.DEPLOY_PORT || 22 }}" \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'node_modules/' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude 'apps/Nextapp-Mobile/android/.gradle/' \
+            --exclude 'apps/Nextapp-Mobile/ios/Pods/' \
+            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_PATH }}/"
+
+      - name: Install production dependencies and restart API
+        run: |
+          ssh -p "${{ secrets.DEPLOY_PORT || 22 }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" <<'REMOTE'
+          set -e
+          cd "${{ env.DEPLOY_PATH }}"
+          npm ci --omit=dev
+          npm run migrate --workspace=apps/Nextapp-API
+          if pm2 describe nextapp-api >/dev/null 2>&1; then
+            pm2 restart nextapp-api --update-env
+          else
+            pm2 start apps/Nextapp-API/index.js --name nextapp-api --update-env
+          fi
+          pm2 save
+          REMOTE
+
+      - name: Check deployed API
+        run: curl --fail --silent --show-error https://yogrind.shop/api/health

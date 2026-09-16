@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'nextapp-api',
-      script: './server/index.js',
-      cwd: './',
+      script: './index.js',
+      cwd: '../Nextapp-API',
       instances: 1,
       autorestart: true,
       watch: false,

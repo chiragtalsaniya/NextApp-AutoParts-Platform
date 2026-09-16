@@ -51,10 +51,22 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // CORS configuration
+const allowedOrigins = (process.env.WEB_ORIGINS || process.env.CORS_ORIGIN || [
+  'https://yogrind.shop',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:8081'
+].join(',')).split(',').map((origin) => origin.trim()).filter(Boolean);
+
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CORS_ORIGIN?.split(',') || ['https://your-production-domain.com']
-    : ['https://localhost:5173', 'http://localhost:3000'],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Origin is not allowed by CORS'));
+  },
   credentials: true
 };
 app.use(cors(corsOptions));
