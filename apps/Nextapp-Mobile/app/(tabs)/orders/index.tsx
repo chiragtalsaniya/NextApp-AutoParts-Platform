@@ -19,6 +19,7 @@ import { HamburgerMenu } from '@/components/HamburgerMenu';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { Order } from '@/types/api';
+import { ORDER_STATUS_TRANSITIONS, OrderStatus } from '@nextapp/shared-types';
 import { ShoppingCart, Clock, CircleCheck as CheckCircle, Truck, Package, CircleAlert as AlertCircle, Plus, Calendar, User, DollarSign, MapPin, Search, X, Filter, Eye, CreditCard as Edit3, Trash2, Download, Building, FileText, Star, ArrowUpDown, SlidersHorizontal } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -294,8 +295,13 @@ export default function OrdersScreen() {
   };
 
   const handleStatusUpdate = (order: Order) => {
-    const validStatuses = ['New', 'Processing', 'Completed', 'Hold', 'Picked', 'Dispatched', 'Pending', 'Cancelled'];
-    const currentStatus = order.status || order.Order_Status;
+    const currentStatus = (order.status || order.Order_Status) as OrderStatus;
+    const validStatuses = ORDER_STATUS_TRANSITIONS[currentStatus] || [];
+
+    if (validStatuses.length === 0) {
+      showToast(`Order is already ${currentStatus} and has no available transitions`, 'info');
+      return;
+    }
     
     Alert.alert(
       'Update Order Status',

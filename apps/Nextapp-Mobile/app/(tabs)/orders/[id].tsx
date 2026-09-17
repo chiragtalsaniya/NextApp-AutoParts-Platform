@@ -17,6 +17,7 @@ import { ErrorMessage } from '@/components/ErrorMessage';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { Order } from '@/types/api';
+import { ORDER_STATUS_DESCRIPTIONS, ORDER_STATUS_TRANSITIONS, OrderStatus } from '@nextapp/shared-types';
 import { 
   Package, 
   User, 
@@ -105,59 +106,10 @@ export default function OrderDetailsScreen() {
       setError(null);
       const response = await apiService.getOrder(parseInt(id));
       
-      // Mock enhanced order data for demonstration
       const enhancedOrder: OrderDetails = {
         ...response,
-        items: [
-          {
-            id: 1,
-            partNumber: 'BP-001',
-            partName: 'Brake Pads - Front Set',
-            quantity: 2,
-            unitPrice: 89.99,
-            totalPrice: 179.98,
-            basicDiscount: 5,
-            schemeDiscount: 2,
-            additionalDiscount: 0,
-            urgent: false,
-            part: {
-              name: 'Brake Pads - Front Set',
-              category: 'Brake System',
-              image: 'https://images.pexels.com/photos/3807277/pexels-photo-3807277.jpeg?auto=compress&cs=tinysrgb&w=400',
-            },
-          },
-          {
-            id: 2,
-            partNumber: 'OIL-002',
-            partName: 'Engine Oil 5W-30',
-            quantity: 4,
-            unitPrice: 24.99,
-            totalPrice: 99.96,
-            basicDiscount: 3,
-            schemeDiscount: 0,
-            additionalDiscount: 1,
-            urgent: true,
-            part: {
-              name: 'Engine Oil 5W-30',
-              category: 'Engine',
-              image: 'https://images.pexels.com/photos/4489702/pexels-photo-4489702.jpeg?auto=compress&cs=tinysrgb&w=400',
-            },
-          },
-        ],
-        statusHistory: [
-          {
-            status: 'New',
-            timestamp: new Date(Date.now() - 86400000).toISOString(),
-            updatedBy: 'System',
-            notes: 'Order created',
-          },
-          {
-            status: 'Processing',
-            timestamp: new Date(Date.now() - 43200000).toISOString(),
-            updatedBy: user?.name || 'Manager',
-            notes: 'Order confirmed and ready for processing',
-          },
-        ],
+        items: response.items || [],
+        statusHistory: response.statusHistory || [],
       };
       
       setOrder(enhancedOrder);
@@ -176,7 +128,7 @@ export default function OrderDetailsScreen() {
           color: '#3b82f6',
           bgColor: '#dbeafe',
           text: 'New',
-          description: 'Order has been created and is awaiting processing',
+          description: ORDER_STATUS_DESCRIPTIONS.New,
         };
       case 'pending':
         return {
@@ -184,7 +136,7 @@ export default function OrderDetailsScreen() {
           color: '#f59e0b',
           bgColor: '#fef3c7',
           text: 'Pending',
-          description: 'Order is waiting for confirmation',
+          description: ORDER_STATUS_DESCRIPTIONS.Pending,
         };
       case 'processing':
         return {
@@ -192,7 +144,7 @@ export default function OrderDetailsScreen() {
           color: '#8b5cf6',
           bgColor: '#ede9fe',
           text: 'Processing',
-          description: 'Order is being processed and prepared',
+          description: ORDER_STATUS_DESCRIPTIONS.Processing,
         };
       case 'completed':
         return {
@@ -200,7 +152,7 @@ export default function OrderDetailsScreen() {
           color: '#10b981',
           bgColor: '#dcfce7',
           text: 'Completed',
-          description: 'Order has been completed successfully',
+          description: ORDER_STATUS_DESCRIPTIONS.Completed,
         };
       case 'hold':
         return {
@@ -208,7 +160,7 @@ export default function OrderDetailsScreen() {
           color: '#f59e0b',
           bgColor: '#fef3c7',
           text: 'Hold',
-          description: 'Order is on hold pending review',
+          description: ORDER_STATUS_DESCRIPTIONS.Hold,
         };
       case 'picked':
         return {
@@ -216,7 +168,7 @@ export default function OrderDetailsScreen() {
           color: '#059669',
           bgColor: '#dcfce7',
           text: 'Picked',
-          description: 'Order items have been picked from inventory',
+          description: ORDER_STATUS_DESCRIPTIONS.Picked,
         };
       case 'dispatched':
         return {
@@ -224,7 +176,7 @@ export default function OrderDetailsScreen() {
           color: '#8b5cf6',
           bgColor: '#ede9fe',
           text: 'Dispatched',
-          description: 'Order has been dispatched for delivery',
+          description: ORDER_STATUS_DESCRIPTIONS.Dispatched,
         };
       case 'cancelled':
         return {
@@ -232,7 +184,7 @@ export default function OrderDetailsScreen() {
           color: '#ef4444',
           bgColor: '#fee2e2',
           text: 'Cancelled',
-          description: 'Order has been cancelled',
+          description: ORDER_STATUS_DESCRIPTIONS.Cancelled,
         };
       default:
         return {
@@ -375,16 +327,11 @@ export default function OrderDetailsScreen() {
   };
 
   const renderStatusModal = () => {
-    const statuses = [
-      { key: 'New', label: 'New' },
-      { key: 'Pending', label: 'Pending' },
-      { key: 'Processing', label: 'Processing' },
-      { key: 'Completed', label: 'Completed' },
-      { key: 'Hold', label: 'Hold' },
-      { key: 'Picked', label: 'Picked' },
-      { key: 'Dispatched', label: 'Dispatched' },
-      { key: 'Cancelled', label: 'Cancelled' },
-    ];
+    const currentStatus = (order?.status || order?.Order_Status || 'New') as OrderStatus;
+    const statuses = (ORDER_STATUS_TRANSITIONS[currentStatus] || []).map((status) => ({
+      key: status,
+      label: status,
+    }));
 
     return (
       <Modal

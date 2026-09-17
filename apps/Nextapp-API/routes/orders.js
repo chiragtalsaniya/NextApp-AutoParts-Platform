@@ -3,6 +3,17 @@ import { executeQuery, executeTransaction, pool } from '../config/database.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 import { validateRequest, orderCreateSchema } from '../middleware/validation.js';
 
+const orderStatusTransitions = {
+  New: ['Pending', 'Processing', 'Hold', 'Cancelled'],
+  Pending: ['Processing', 'Hold', 'Cancelled'],
+  Processing: ['Picked', 'Hold', 'Cancelled'],
+  Hold: ['Pending', 'Processing', 'Cancelled'],
+  Picked: ['Dispatched', 'Hold'],
+  Dispatched: ['Completed'],
+  Completed: [],
+  Cancelled: [],
+};
+
 const router = express.Router();
 
 // Get orders with filtering and pagination
@@ -309,10 +320,28 @@ router.patch('/:id/status',
       const orderId = req.params.id;
       const { status, notes } = req.body;
 
-      const validStatuses = ['New', 'Processing', 'Completed', 'Hold', 'Picked', 'Dispatched', 'Pending', 'Cancelled'];
+      const currentOrders = await executeQuery(
+        'SELECT Order_Status, Retailer_Id, Branch FROM order_master WHERE Order_Id = ?',
+        [orderId],
+      );
+
+      if (currentOrders.length === 0) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      const currentStatus = currentOrders[0].Order_Status;
+      const validStatuses = Object.keys(orderStatusTransitions);
       
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      if (!orderStatusTransitions[currentStatus]?.includes(status)) {
+        return res.status(409).json({
+          error: `Cannot change order status from ${currentStatus} to ${status}`,
+          currentStatus,
+          allowedStatuses: orderStatusTransitions[currentStatus] || [],
+        });
       }
 
       // Update order status

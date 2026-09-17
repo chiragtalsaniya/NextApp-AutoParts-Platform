@@ -8,6 +8,28 @@ export type OrderStatus =
   | 'Pending'
   | 'Cancelled';
 
+export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  New: ['Pending', 'Processing', 'Hold', 'Cancelled'],
+  Pending: ['Processing', 'Hold', 'Cancelled'],
+  Processing: ['Picked', 'Hold', 'Cancelled'],
+  Hold: ['Pending', 'Processing', 'Cancelled'],
+  Picked: ['Dispatched', 'Hold'],
+  Dispatched: ['Completed'],
+  Completed: [],
+  Cancelled: [],
+};
+
+export const ORDER_STATUS_DESCRIPTIONS: Record<OrderStatus, string> = {
+  New: 'Order has been created and is awaiting processing',
+  Pending: 'Order is waiting for confirmation',
+  Processing: 'Order is being processed and prepared',
+  Hold: 'Order is on hold pending review',
+  Picked: 'Order items have been picked from inventory',
+  Dispatched: 'Order has been dispatched for delivery',
+  Completed: 'Order has been completed successfully',
+  Cancelled: 'Order has been cancelled',
+};
+
 export interface OrderItem {
   id: number;
   orderId: number;
