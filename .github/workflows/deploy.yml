@@ -18,10 +18,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -33,6 +33,12 @@ jobs:
           --workspace=apps/NextApp-API
           --workspace=packages/shared-types
           --include-workspace-root
+
+      - name: Restore Linux Rollup native dependency
+        run: |
+          npm install --no-save --package-lock=false --include=optional --ignore-scripts \
+            @rollup/rollup-linux-x64-gnu@4.63.3
+          node -e "require.resolve('@rollup/rollup-linux-x64-gnu'); console.log('Linux Rollup native dependency is available')"
 
       - name: Build CRM
         env:
