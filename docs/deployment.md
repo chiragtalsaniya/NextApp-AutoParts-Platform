@@ -15,7 +15,7 @@ The workflow uses `/var/www/nextapp-autoparts` as the server directory. The user
 
 ## Server setup
 
-Install Node.js 20, MySQL, Nginx, and PM2 on the server. Create the production environment file at:
+Install Node.js 24, MySQL, Nginx, and PM2 on the server. Create the production environment file at:
 
 `/var/www/nextapp-autoparts/apps/Nextapp-API/.env`
 
