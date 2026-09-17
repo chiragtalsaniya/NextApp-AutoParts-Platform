@@ -2,7 +2,9 @@
   "name": "nextapp-autoparts-platform",
   "private": true,
   "workspaces": [
-    "apps/*",
+    "apps/NextApp-CRM",
+    "apps/NextApp-API",
+    "apps/NextApp-Mobile",
     "packages/*"
   ],
   "scripts": {
