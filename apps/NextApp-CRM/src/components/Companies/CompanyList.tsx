@@ -2,7 +2,7 @@ import React, { useState, useEffect, ChangeEvent } from 'react';
 import { Plus, Search, Edit, Trash2, Building2, Phone, Mail, Upload, Eye, X, Image as ImageIcon, Shield } from 'lucide-react';
 import { Company } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { companiesAPI } from '../../services/api';
+import { companiesAPI, storesAPI, usersAPI } from '../../services/api';
 
 export const CompanyList: React.FC = () => {
   const { user, canAccessCompany, getAccessibleCompanies } = useAuth();
@@ -16,6 +16,7 @@ export const CompanyList: React.FC = () => {
   const [logoPreview, setLogoPreview] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [companyStats, setCompanyStats] = useState<Record<string, { stores: number; users: number }>>({});
 
   // Load companies from API
   useEffect(() => {
@@ -24,7 +25,7 @@ export const CompanyList: React.FC = () => {
         setLoading(true);
         setError(null);
         const response = await companiesAPI.getCompanies();
-        setCompanies(Array.isArray(response.data) ? response.data : []);
+        setCompanies(response.data.companies || []);
       } catch (err) {
         setError('Failed to load companies. Please try again.');
       } finally {
@@ -78,6 +79,19 @@ export const CompanyList: React.FC = () => {
     if (!canAccessCompany(company.id)) return;
     setSelectedCompany(company);
     setShowViewModal(true);
+    // Fetch real stats for this company
+    Promise.all([
+      storesAPI.getStores({ company_id: company.id, limit: 1 }),
+      usersAPI.getUsers({ company_id: company.id, limit: 1 })
+    ]).then(([storesRes, usersRes]) => {
+      setCompanyStats(prev => ({
+        ...prev,
+        [company.id]: {
+          stores: storesRes.data?.pagination?.total || 0,
+          users: usersRes.data?.pagination?.total || 0
+        }
+      }));
+    }).catch(() => {});
   };
 
   const handleSaveCompany = async () => {
@@ -90,7 +104,7 @@ export const CompanyList: React.FC = () => {
       }
       // Refresh list
       const response = await companiesAPI.getCompanies();
-      setCompanies(Array.isArray(response.data) ? response.data : []);
+      setCompanies(response.data.companies || []);
       setShowEditModal(false);
       setShowAddModal(false);
     } catch (err) {
@@ -341,11 +355,11 @@ export const CompanyList: React.FC = () => {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-blue-700">Total Stores</p>
-                  <p className="text-blue-900 font-semibold">8</p>
+                  <p className="text-blue-900 font-semibold">{companyStats[company.id]?.stores ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="text-blue-700">Active Users</p>
-                  <p className="text-blue-900 font-semibold">45</p>
+                  <p className="text-blue-700">Total Users</p>
+                  <p className="text-blue-900 font-semibold">{companyStats[company.id]?.users ?? '—'}</p>
                 </div>
               </div>
             </div>

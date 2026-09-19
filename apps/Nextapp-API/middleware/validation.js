@@ -66,6 +66,14 @@ export const companyCreateSchema = Joi.object({
   logo_url: Joi.string().uri().allow('')
 });
 
+export const companyUpdateSchema = Joi.object({
+  name: Joi.string().min(2).max(255),
+  address: Joi.string().max(1000),
+  contact_email: Joi.string().email().allow('', null),
+  contact_phone: Joi.string().max(50).allow('', null),
+  logo_url: Joi.string().uri().allow('', null)
+}).min(1);
+
 // Store validation schemas
 export const storeCreateSchema = Joi.object({
   Branch_Code: Joi.string().min(1).max(15).required(),
@@ -80,6 +88,18 @@ export const storeCreateSchema = Joi.object({
   company_id: Joi.string().required()
 });
 
+export const storeUpdateSchema = Joi.object({
+  Branch_Name: Joi.string().max(255),
+  Company_Name: Joi.string().max(255),
+  Branch_Address: Joi.string().max(1000),
+  Branch_Phone: Joi.string().max(50),
+  Branch_Email: Joi.string().email().allow('', null),
+  Branch_Manager: Joi.string().max(255),
+  Branch_URL: Joi.string().max(255),
+  Branch_Manager_Mobile: Joi.string().max(50),
+  company_id: Joi.string()
+}).min(1);
+
 // Retailer validation schemas
 export const retailerCreateSchema = Joi.object({
   Retailer_Name: Joi.string().max(255),
@@ -92,6 +112,32 @@ export const retailerCreateSchema = Joi.object({
   Area_Name: Joi.string().max(255),
   Pincode: Joi.string().max(20)
 });
+
+export const retailerUpdateSchema = Joi.object({
+  Retailer_Name: Joi.string().max(255),
+  Retailer_Address: Joi.string().max(1000),
+  Retailer_Mobile: Joi.string().max(50),
+  Contact_Person: Joi.string().max(255),
+  Retailer_Email: Joi.string().email().allow('', null),
+  GST_No: Joi.string().max(50).allow('', null),
+  Credit_Limit: Joi.number().min(0),
+  Area_Name: Joi.string().max(255).allow('', null),
+  Pincode: Joi.string().max(20).allow('', null),
+  Retailer_Status: Joi.number().integer().valid(0, 1),
+  Confirm: Joi.number().integer().valid(0, 1)
+}).min(1);
+
+// Region validation schemas
+export const regionCreateSchema = Joi.object({
+  id: Joi.string().min(1).max(50).required(),
+  name: Joi.string().min(2).max(255).required(),
+  store_id: Joi.string().max(15).required()
+});
+
+export const regionUpdateSchema = Joi.object({
+  name: Joi.string().min(2).max(255),
+  store_id: Joi.string().max(15)
+}).min(1);
 
 // Part validation schemas
 export const partCreateSchema = Joi.object({

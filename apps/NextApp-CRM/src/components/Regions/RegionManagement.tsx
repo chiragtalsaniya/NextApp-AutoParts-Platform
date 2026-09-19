@@ -10,13 +10,14 @@ import {
   X,
   Upload,
   Download,
-  Filter,
-  Users
+  Filter
 } from 'lucide-react';
 import { Region } from '../../types';
 import { regionsAPI, storesAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 export const RegionManagement: React.FC = () => {
+  const { user } = useAuth();
   const [regions, setRegions] = useState<Region[]>([]);
   const [stores, setStores] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -63,8 +64,7 @@ export const RegionManagement: React.FC = () => {
     setFormData({
       id: '',
       name: '',
-      store_id: '',
-      created_by: '1' // Current user ID
+      store_id: ''
     });
     setShowAddModal(true);
   };
@@ -260,18 +260,12 @@ export const RegionManagement: React.FC = () => {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center space-x-2 mb-2">
-                <Users className="w-5 h-5 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">Region Statistics</span>
+                <Store className="w-5 h-5 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">Store Assignment</span>
               </div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-blue-700">Active Retailers</p>
-                  <p className="text-blue-900 font-semibold">12</p>
-                </div>
-                <div>
-                  <p className="text-blue-700">Total Orders</p>
-                  <p className="text-blue-900 font-semibold">156</p>
-                </div>
+              <div className="text-sm">
+                <p className="text-blue-700">Assigned Store</p>
+                <p className="text-blue-900 font-semibold">{getStoreName(region.store_id)}</p>
               </div>
             </div>
           </div>

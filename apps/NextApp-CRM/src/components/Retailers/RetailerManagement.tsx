@@ -27,20 +27,11 @@ import {
 } from 'lucide-react';
 import { Retailer } from '../../types';
 import { retailersAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 export const RetailerManagement: React.FC = () => {
+  const { user } = useAuth();
   const [retailers, setRetailers] = useState<Retailer[]>([]);
-  const [areas] = useState([
-    { id: 1, name: 'Manhattan Downtown' },
-    { id: 2, name: 'SoHo District' },
-    { id: 3, name: 'Hollywood' },
-    { id: 4, name: 'Brooklyn Heights' }
-  ]);
-  const [retailerTypes] = useState([
-    { id: 1, name: 'Premium Dealer' },
-    { id: 2, name: 'Standard Dealer' },
-    { id: 3, name: 'Basic Dealer' }
-  ]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedArea, setSelectedArea] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -99,7 +90,7 @@ export const RetailerManagement: React.FC = () => {
       Owner_Mobile: '',
       Area_Id: undefined,
       GST_No: '',
-      Credit_Limit: 45,
+      Credit_Limit: 0,
       Type_Id: 0,
       Confirm: 0,
       Retailer_Tour_Id: undefined,
@@ -175,11 +166,12 @@ export const RetailerManagement: React.FC = () => {
   };
 
   const getAreaName = (areaId?: number) => {
-    return areas.find(a => a.id === areaId)?.name || 'Unknown Area';
+    const retailer = retailers.find(r => r.Area_Id === areaId);
+    return retailer?.Area_Name || 'N/A';
   };
 
   const getRetailerTypeName = (typeId?: number) => {
-    return retailerTypes.find(t => t.id === typeId)?.name || 'Unknown Type';
+    return typeId === 1 ? 'Premium' : typeId === 2 ? 'Standard' : 'Basic';
   };
 
   const getStatusColor = (status?: number) => {

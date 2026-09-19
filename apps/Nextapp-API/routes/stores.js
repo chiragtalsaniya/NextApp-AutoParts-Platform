@@ -1,6 +1,7 @@
 import express from 'express';
 import { executeQuery } from '../config/database.js';
-import { authenticateToken, authorizeRoles, authorizeCompanyAccess } from '../middleware/auth.js';
+import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
+import { validateRequest, storeCreateSchema, storeUpdateSchema } from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -113,9 +114,10 @@ router.get('/:branchCode', authenticateToken, async (req, res) => {
 });
 
 // Create new store
-router.post('/', 
+router.post('/',
   authenticateToken,
   authorizeRoles('super_admin', 'admin'),
+  validateRequest(storeCreateSchema),
   async (req, res) => {
     try {
       const { 
@@ -188,6 +190,7 @@ router.post('/',
 router.put('/:branchCode',
   authenticateToken,
   authorizeRoles('super_admin', 'admin'),
+  validateRequest(storeUpdateSchema),
   async (req, res) => {
     try {
       const branchCode = req.params.branchCode;
@@ -296,6 +299,42 @@ router.delete('/:branchCode',
       // Check if user has access to this store
       if (req.user.role === 'admin' && existingStore.company_id !== req.user.company_id) {
         return res.status(403).json({ error: 'Cannot delete store from another company' });
+      }
+
+      // Check for dependent regions
+      const regions = await executeQuery(
+        'SELECT COUNT(*) as count FROM regions WHERE store_id = ?',
+        [branchCode]
+      );
+
+      if (regions[0].count > 0) {
+        return res.status(409).json({
+          error: `Cannot delete store: ${regions[0].count} region(s) are still assigned to this store. Remove them first.`
+        });
+      }
+
+      // Check for dependent users
+      const users = await executeQuery(
+        'SELECT COUNT(*) as count FROM users WHERE store_id = ?',
+        [branchCode]
+      );
+
+      if (users[0].count > 0) {
+        return res.status(409).json({
+          error: `Cannot delete store: ${users[0].count} user(s) are still assigned to this store. Remove or reassign them first.`
+        });
+      }
+
+      // Check for dependent item_status records
+      const itemStatus = await executeQuery(
+        'SELECT COUNT(*) as count FROM item_status WHERE Branch_Code = ?',
+        [branchCode]
+      );
+
+      if (itemStatus[0].count > 0) {
+        return res.status(409).json({
+          error: `Cannot delete store: ${itemStatus[0].count} inventory item(s) are still linked to this store.`
+        });
       }
 
       const result = await executeQuery(

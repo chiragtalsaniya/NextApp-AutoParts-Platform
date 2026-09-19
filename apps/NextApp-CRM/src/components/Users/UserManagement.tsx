@@ -22,8 +22,10 @@ import {
 } from 'lucide-react';
 import { User, UserRole, Company, Store as StoreType, Retailer } from '../../types';
 import { usersAPI, companiesAPI, storesAPI, retailersAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 export const UserManagement: React.FC = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [stores, setStores] = useState<StoreType[]>([]);
@@ -255,6 +257,20 @@ export const UserManagement: React.FC = () => {
                   required
                 />
               </div>
+
+              {showAddModal && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Password *</label>
+                  <input
+                    type="password"
+                    value={(formData as any).password || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none"
+                    placeholder="Enter password (min 6 characters)"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role *</label>

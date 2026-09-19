@@ -4,6 +4,8 @@ import { executeQuery } from '../config/database.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 import { validateRequest, userCreateSchema, userUpdateSchema } from '../middleware/validation.js';
 
+const ALLOWED_UPDATE_FIELDS = ['name', 'email', 'company_id', 'store_id', 'region_id', 'retailer_id', 'profile_image', 'is_active'];
+
 const router = express.Router();
 
 // Get users with filtering and pagination
@@ -253,12 +255,46 @@ router.put('/:id',
       // Remove password from update data (use separate endpoint for password changes)
       delete updateData.password;
 
-      const fields = Object.keys(updateData);
-      const values = Object.values(updateData);
+      // Role escalation guard: prevent admins/managers from changing roles they can't assign
+      if (updateData.role && updateData.role !== existingUser.role) {
+        if (req.user.role === 'admin') {
+          // Admin cannot create or promote to super_admin
+          if (updateData.role === 'super_admin') {
+            return res.status(403).json({ error: 'Cannot promote users to super admin' });
+          }
+          // Admin can only change roles within their company
+          if (existingUser.company_id !== req.user.company_id && existingUser.role !== 'retailer') {
+            return res.status(403).json({ error: 'Cannot change role for users outside your company' });
+          }
+        } else if (req.user.role === 'manager') {
+          // Manager can only assign storeman/salesman roles
+          if (!['storeman', 'salesman'].includes(updateData.role)) {
+            return res.status(403).json({ error: 'Managers can only assign storeman or salesman roles' });
+          }
+        }
+      }
+
+      // Filter to allowed fields only (prevent mass-assignment)
+      const filteredData = {};
+      for (const key of ALLOWED_UPDATE_FIELDS) {
+        if (updateData[key] !== undefined) {
+          filteredData[key] = updateData[key];
+        }
+      }
+      // Allow role update only for super_admin
+      if (updateData.role !== undefined && req.user.role === 'super_admin') {
+        filteredData.role = updateData.role;
+      }
+
+      const fields = Object.keys(filteredData);
+      if (fields.length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+      const values = Object.values(filteredData);
       const setClause = fields.map(field => `${field} = ?`).join(', ');
 
       const updateQuery = `
-        UPDATE users 
+        UPDATE users
         SET ${setClause}
         WHERE id = ?
       `;
@@ -337,8 +373,28 @@ router.patch('/:id/status',
         return res.status(400).json({ error: 'Cannot deactivate your own account' });
       }
 
+      // Check if user exists and has access
+      const existingUsers = await executeQuery('SELECT id, company_id, store_id, role FROM users WHERE id = ?', [userId]);
+      if (existingUsers.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      const targetUser = existingUsers[0];
+
+      if (req.user.role === 'admin') {
+        if (targetUser.company_id !== req.user.company_id && targetUser.role !== 'retailer') {
+          return res.status(403).json({ error: 'Cannot update users outside your company' });
+        }
+        if (targetUser.role === 'super_admin') {
+          return res.status(403).json({ error: 'Cannot modify super admin status' });
+        }
+      } else if (req.user.role === 'manager') {
+        if (targetUser.store_id !== req.user.store_id) {
+          return res.status(403).json({ error: 'Cannot update users outside your store' });
+        }
+      }
+
       const updateQuery = `
-        UPDATE users 
+        UPDATE users
         SET is_active = ?
         WHERE id = ?
       `;
