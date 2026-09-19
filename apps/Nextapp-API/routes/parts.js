@@ -1,11 +1,79 @@
 import express from 'express';
 import { executeQuery } from '../config/database.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
-import { validateRequest, partCreateSchema } from '../middleware/validation.js';
+import { validateRequest, partCreateSchema, partUpdateSchema } from '../middleware/validation.js';
 
 const router = express.Router();
 
-// Get parts with filtering and pagination
+// Static routes must be defined before dynamic /:partNumber to avoid matching "meta" or "alerts" as part numbers
+
+// Get part categories
+router.get('/meta/categories', authenticateToken, async (req, res) => {
+  try {
+    const categories = await executeQuery(`
+      SELECT DISTINCT Part_Catagory as category, COUNT(*) as count
+      FROM parts 
+      WHERE Part_Catagory IS NOT NULL AND Part_Catagory != ''
+      GROUP BY Part_Catagory
+      ORDER BY Part_Catagory
+    `);
+
+    res.json(categories);
+  } catch (error) {
+    console.error('Get categories error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get focus groups
+router.get('/meta/focus-groups', authenticateToken, async (req, res) => {
+  try {
+    const focusGroups = await executeQuery(`
+      SELECT DISTINCT Focus_Group as focus_group, COUNT(*) as count
+      FROM parts 
+      WHERE Focus_Group IS NOT NULL AND Focus_Group != ''
+      GROUP BY Focus_Group
+      ORDER BY Focus_Group
+    `);
+
+    res.json(focusGroups);
+  } catch (error) {
+    console.error('Get focus groups error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get low stock parts (catalog-level, based on T1-T5 vs Part_MinQty)
+router.get('/alerts/low-stock', 
+  authenticateToken,
+  authorizeRoles('super_admin', 'admin', 'manager', 'storeman'),
+  async (req, res) => {
+    try {
+      const lowStockQuery = `
+        SELECT 
+          Part_Number,
+          Part_Name,
+          Part_MinQty,
+          (T1 + T2 + T3 + T4 + T5) as total_stock,
+          Part_Catagory,
+          Focus_Group
+        FROM parts 
+        WHERE Item_Status = 'Active' 
+        AND (T1 + T2 + T3 + T4 + T5) <= Part_MinQty
+        ORDER BY (T1 + T2 + T3 + T4 + T5) ASC
+      `;
+
+      const lowStockParts = await executeQuery(lowStockQuery);
+
+      res.json(lowStockParts);
+    } catch (error) {
+      console.error('Get low stock error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+// Get parts with filtering, sorting, and pagination
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { 
@@ -15,7 +83,9 @@ router.get('/', authenticateToken, async (req, res) => {
       category,
       focus_group,
       status = 'Active',
-      order_pad_only
+      order_pad_only,
+      sort_by = 'Part_Name',
+      sort_order = 'ASC'
     } = req.query;
 
     let whereConditions = ['Item_Status = ?'];
@@ -43,29 +113,37 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
 
+    // Allowed sort columns to prevent SQL injection via column names
+    const allowedSortColumns = ['Part_Name', 'Part_Number', 'Part_Price', 'Part_Catagory', 'Focus_Group', 'Item_Status', 'Last_Sync'];
+    const safeSortBy = allowedSortColumns.includes(sort_by) ? sort_by : 'Part_Name';
+    const safeSortOrder = sort_order.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
     // Get total count
     const countQuery = `SELECT COUNT(*) as total FROM parts ${whereClause}`;
     const countResult = await executeQuery(countQuery, queryParams);
     const total = countResult[0].total;
 
     // Get parts with pagination
-    const offset = (page - 1) * limit;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+    const offset = (pageNum - 1) * limitNum;
+
     const partsQuery = `
       SELECT * FROM parts 
       ${whereClause}
-      ORDER BY Part_Name ASC
+      ORDER BY ${safeSortBy} ${safeSortOrder}
       LIMIT ? OFFSET ?
     `;
 
-    const parts = await executeQuery(partsQuery, [...queryParams, parseInt(limit), offset]);
+    const parts = await executeQuery(partsQuery, [...queryParams, limitNum, offset]);
 
     res.json({
       parts,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
@@ -143,6 +221,7 @@ router.post('/',
 router.put('/:partNumber',
   authenticateToken,
   authorizeRoles('super_admin', 'admin', 'manager'),
+  validateRequest(partUpdateSchema),
   async (req, res) => {
     try {
       const partNumber = req.params.partNumber;
@@ -155,6 +234,9 @@ router.put('/:partNumber',
       delete updateData.Part_Number;
 
       const fields = Object.keys(updateData);
+      if (fields.length === 0) {
+        return res.status(400).json({ error: 'No fields to update' });
+      }
       const values = Object.values(updateData);
       const setClause = fields.map(field => `${field} = ?`).join(', ');
 
@@ -178,7 +260,7 @@ router.put('/:partNumber',
   }
 );
 
-// Update part stock levels
+// Update part stock levels (catalog-level T1-T5)
 router.patch('/:partNumber/stock',
   authenticateToken,
   authorizeRoles('super_admin', 'admin', 'manager', 'storeman'),
@@ -206,72 +288,6 @@ router.patch('/:partNumber/stock',
       res.json({ message: 'Stock levels updated successfully' });
     } catch (error) {
       console.error('Update stock error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-);
-
-// Get part categories
-router.get('/meta/categories', authenticateToken, async (req, res) => {
-  try {
-    const categories = await executeQuery(`
-      SELECT DISTINCT Part_Catagory as category, COUNT(*) as count
-      FROM parts 
-      WHERE Part_Catagory IS NOT NULL AND Part_Catagory != ''
-      GROUP BY Part_Catagory
-      ORDER BY Part_Catagory
-    `);
-
-    res.json(categories);
-  } catch (error) {
-    console.error('Get categories error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get focus groups
-router.get('/meta/focus-groups', authenticateToken, async (req, res) => {
-  try {
-    const focusGroups = await executeQuery(`
-      SELECT DISTINCT Focus_Group as focus_group, COUNT(*) as count
-      FROM parts 
-      WHERE Focus_Group IS NOT NULL AND Focus_Group != ''
-      GROUP BY Focus_Group
-      ORDER BY Focus_Group
-    `);
-
-    res.json(focusGroups);
-  } catch (error) {
-    console.error('Get focus groups error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get low stock parts
-router.get('/alerts/low-stock', 
-  authenticateToken,
-  authorizeRoles('super_admin', 'admin', 'manager', 'storeman'),
-  async (req, res) => {
-    try {
-      const lowStockQuery = `
-        SELECT 
-          Part_Number,
-          Part_Name,
-          Part_MinQty,
-          (T1 + T2 + T3 + T4 + T5) as total_stock,
-          Part_Catagory,
-          Focus_Group
-        FROM parts 
-        WHERE Item_Status = 'Active' 
-        AND (T1 + T2 + T3 + T4 + T5) <= Part_MinQty
-        ORDER BY (T1 + T2 + T3 + T4 + T5) ASC
-      `;
-
-      const lowStockParts = await executeQuery(lowStockQuery);
-
-      res.json(lowStockParts);
-    } catch (error) {
-      console.error('Get low stock error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   }

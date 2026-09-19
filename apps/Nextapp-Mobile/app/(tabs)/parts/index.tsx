@@ -160,15 +160,16 @@ export default function PartsScreen() {
   };
 
   const getStockStatus = (part: Part) => {
-    const mockCurrentStock = Math.floor(Math.random() * (part.Part_MinQty * 3)) + 1;
-    const isLowStock = mockCurrentStock <= part.Part_MinQty;
+    const currentStock = (part.T1 || 0) + (part.T2 || 0) + (part.T3 || 0) + (part.T4 || 0) + (part.T5 || 0);
+    const minQty = part.Part_MinQty || 0;
+    const isLowStock = currentStock <= minQty;
     
     return {
-      currentStock: mockCurrentStock,
+      currentStock,
       isLowStock,
-      status: isLowStock ? 'Low Stock' : 'In Stock',
-      color: isLowStock ? '#ef4444' : '#10b981',
-      bgColor: isLowStock ? '#fee2e2' : '#dcfce7',
+      status: currentStock === 0 ? 'Out of Stock' : isLowStock ? 'Low Stock' : 'In Stock',
+      color: currentStock === 0 ? '#dc2626' : isLowStock ? '#ef4444' : '#10b981',
+      bgColor: currentStock === 0 ? '#fee2e2' : isLowStock ? '#fee2e2' : '#dcfce7',
     };
   };
 

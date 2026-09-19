@@ -158,6 +158,108 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// Get low stock items by store (must be before /:branchCode/:partNo)
+router.get('/alerts/low-stock', 
+  authenticateToken,
+  authorizeRoles('super_admin', 'admin', 'manager', 'storeman'),
+  async (req, res) => {
+    try {
+      const { branch_code } = req.query;
+
+      let whereConditions = [];
+      let queryParams = [];
+
+      // Role-based filtering
+      if (req.user.role !== 'super_admin') {
+        if (req.user.store_id) {
+          whereConditions.push('ist.Branch_Code = ?');
+          queryParams.push(req.user.store_id);
+        } else if (req.user.company_id) {
+          whereConditions.push('s.company_id = ?');
+          queryParams.push(req.user.company_id);
+        }
+      }
+
+      if (branch_code) {
+        whereConditions.push('ist.Branch_Code = ?');
+        queryParams.push(branch_code);
+      }
+
+      // Low stock condition (less than 20% of max stock)
+      whereConditions.push('(CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)) < CAST(ist.Part_Max AS UNSIGNED) * 0.2');
+
+      const whereClause = whereConditions.length > 0 ? 
+        `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      const lowStockQuery = `
+        SELECT 
+          ist.*,
+          s.Branch_Name,
+          p.Part_Name,
+          p.Part_Price,
+          (CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)) as total_stock,
+          CAST(ist.Part_Max AS UNSIGNED) as max_stock
+        FROM item_status ist
+        LEFT JOIN stores s ON ist.Branch_Code = s.Branch_Code
+        LEFT JOIN parts p ON ist.Part_No = p.Part_Number
+        ${whereClause}
+        ORDER BY total_stock ASC
+      `;
+
+      const lowStockItems = await executeQuery(lowStockQuery, queryParams);
+
+      // Add stock level indicators
+      const enrichedData = lowStockItems.map(item => {
+        const totalStock = item.total_stock || 0;
+        const maxStock = item.max_stock || 0;
+        const stockPercentage = maxStock > 0 ? (totalStock / maxStock) * 100 : 0;
+        
+        return {
+          ...item,
+          stock_percentage: Math.round(stockPercentage),
+          urgency: stockPercentage < 10 ? 'critical' : 'low'
+        };
+      });
+
+      res.json(enrichedData);
+    } catch (error) {
+      console.error('Get low stock error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+// Get item status statistics by store (must be before /:branchCode/:partNo)
+router.get('/stats/:branchCode', authenticateToken, async (req, res) => {
+  try {
+    const { branchCode } = req.params;
+
+    // Check store access
+    if (req.user.role !== 'super_admin' && req.user.store_id !== branchCode) {
+      return res.status(403).json({ error: 'Access denied to this store' });
+    }
+
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_items,
+        SUM(CAST(Part_A AS UNSIGNED) + CAST(Part_B AS UNSIGNED) + CAST(Part_C AS UNSIGNED)) as total_stock,
+        AVG(CAST(Part_A AS UNSIGNED) + CAST(Part_B AS UNSIGNED) + CAST(Part_C AS UNSIGNED)) as avg_stock,
+        COUNT(CASE WHEN (CAST(Part_A AS UNSIGNED) + CAST(Part_B AS UNSIGNED) + CAST(Part_C AS UNSIGNED)) < CAST(Part_Max AS UNSIGNED) * 0.2 THEN 1 END) as low_stock_items,
+        COUNT(CASE WHEN (CAST(Part_A AS UNSIGNED) + CAST(Part_B AS UNSIGNED) + CAST(Part_C AS UNSIGNED)) = 0 THEN 1 END) as out_of_stock_items,
+        COUNT(DISTINCT Part_Rack) as unique_racks
+      FROM item_status 
+      WHERE Branch_Code = ?
+    `;
+
+    const stats = await executeQuery(statsQuery, [branchCode]);
+
+    res.json(stats[0]);
+  } catch (error) {
+    console.error('Get item status stats error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get item status by store and part
 router.get('/:branchCode/:partNo', authenticateToken, async (req, res) => {
   try {
@@ -470,107 +572,5 @@ router.post('/:branchCode/:partNo/purchase',
     }
   }
 );
-
-// Get low stock items by store
-router.get('/alerts/low-stock', 
-  authenticateToken,
-  authorizeRoles('super_admin', 'admin', 'manager', 'storeman'),
-  async (req, res) => {
-    try {
-      const { branch_code } = req.query;
-
-      let whereConditions = [];
-      let queryParams = [];
-
-      // Role-based filtering
-      if (req.user.role !== 'super_admin') {
-        if (req.user.store_id) {
-          whereConditions.push('ist.Branch_Code = ?');
-          queryParams.push(req.user.store_id);
-        } else if (req.user.company_id) {
-          whereConditions.push('s.company_id = ?');
-          queryParams.push(req.user.company_id);
-        }
-      }
-
-      if (branch_code) {
-        whereConditions.push('ist.Branch_Code = ?');
-        queryParams.push(branch_code);
-      }
-
-      // Low stock condition (less than 20% of max stock)
-      whereConditions.push('(CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)) < CAST(ist.Part_Max AS UNSIGNED) * 0.2');
-
-      const whereClause = whereConditions.length > 0 ? 
-        `WHERE ${whereConditions.join(' AND ')}` : '';
-
-      const lowStockQuery = `
-        SELECT 
-          ist.*,
-          s.Branch_Name,
-          p.Part_Name,
-          p.Part_Price,
-          (CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)) as total_stock,
-          CAST(ist.Part_Max AS UNSIGNED) as max_stock
-        FROM item_status ist
-        LEFT JOIN stores s ON ist.Branch_Code = s.Branch_Code
-        LEFT JOIN parts p ON ist.Part_No = p.Part_Number
-        ${whereClause}
-        ORDER BY total_stock ASC
-      `;
-
-      const lowStockItems = await executeQuery(lowStockQuery, queryParams);
-
-      // Add stock level indicators
-      const enrichedData = lowStockItems.map(item => {
-        const totalStock = item.total_stock || 0;
-        const maxStock = item.max_stock || 0;
-        const stockPercentage = maxStock > 0 ? (totalStock / maxStock) * 100 : 0;
-        
-        return {
-          ...item,
-          stock_percentage: Math.round(stockPercentage),
-          urgency: stockPercentage < 10 ? 'critical' : 'low'
-        };
-      });
-
-      res.json(enrichedData);
-    } catch (error) {
-      console.error('Get low stock error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-);
-
-// Get item status statistics by store
-router.get('/stats/:branchCode', authenticateToken, async (req, res) => {
-  try {
-    const { branchCode } = req.params;
-
-    // Check store access
-    if (req.user.role !== 'super_admin' && req.user.store_id !== branchCode) {
-      return res.status(403).json({ error: 'Access denied to this store' });
-    }
-
-    const statsQuery = `
-      SELECT 
-        COUNT(*) as total_items,
-        SUM(CAST(Part_A AS UNSIGNED) + CAST(Part_B AS UNSIGNED) + CAST(Part_C AS UNSIGNED)) as total_stock,
-        AVG(CAST(Part_A AS UNSIGNED) + CAST(Part_B AS UNSIGNED) + CAST(Part_C AS UNSIGNED)) as avg_stock,
-        COUNT(CASE WHEN (CAST(Part_A AS UNSIGNED) + CAST(Part_B AS UNSIGNED) + CAST(Part_C AS UNSIGNED)) < CAST(Part_Max AS UNSIGNED) * 0.2 THEN 1 END) as low_stock_items,
-        COUNT(CASE WHEN (CAST(Part_A AS UNSIGNED) + CAST(Part_B AS UNSIGNED) + CAST(Part_C AS UNSIGNED)) = 0 THEN 1 END) as out_of_stock_items,
-        COUNT(DISTINCT Part_Rack) as unique_racks
-      FROM item_status 
-      WHERE Branch_Code = ?
-    `;
-
-    const stats = await executeQuery(statsQuery, [branchCode]);
-
-    res.json(stats[0]);
-  } catch (error) {
-    console.error('Get item status stats error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 export default router;

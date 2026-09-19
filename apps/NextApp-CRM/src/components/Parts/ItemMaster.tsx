@@ -41,41 +41,59 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
   const [formData, setFormData] = useState<Partial<Part>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({ page: 1, limit: 24, total: 0, pages: 0 });
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadCategoriesAndFocusGroups = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        const [partsRes, catRes, focusRes] = await Promise.all([
-          partsAPI.getParts({ limit: 100 }),
+        const [catRes, focusRes] = await Promise.all([
           partsAPI.getCategories(),
           partsAPI.getFocusGroups(),
         ]);
-        setParts(partsRes.data?.parts || []);
         setCategories((catRes.data || []).map((c: any) => ({ id: c.id || c.category, name: c.category || c.name, description: c.description || '' })));
         setFocusGroups((focusRes.data || []).map((f: any) => ({ id: f.id || f.focus_group, name: f.focus_group || f.name, description: f.description || '' })));
-      } catch (err) {
+      } catch {
+        // Categories and focus groups are optional filters
+      }
+    };
+    loadCategoriesAndFocusGroups();
+  }, []);
+
+  useEffect(() => {
+    const loadParts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const params: Record<string, string | number> = {
+          page: pagination.page,
+          limit: pagination.limit,
+        };
+        if (searchTerm.trim()) params.search = searchTerm.trim();
+        if (selectedCategory !== 'All') params.category = selectedCategory;
+        if (selectedFocusGroup !== 'All') params.focus_group = selectedFocusGroup;
+        if (statusFilter !== 'All') params.status = statusFilter;
+
+        const res = await partsAPI.getParts(params);
+        setParts(res.data?.parts || []);
+        if (res.data?.pagination) {
+          setPagination(prev => ({ ...prev, total: res.data.pagination.total, pages: res.data.pagination.pages }));
+        }
+      } catch {
         setError('Failed to load parts data. Please try again.');
       } finally {
         setLoading(false);
       }
     };
-    loadData();
-  }, []);
+    const debounceTimer = setTimeout(loadParts, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm, selectedCategory, selectedFocusGroup, statusFilter, pagination.page, pagination.limit]);
 
-  const filteredParts = parts.filter(part => {
-    const matchesSearch = 
-      part.Part_Number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (part.Part_Name && part.Part_Name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (part.Part_Application && part.Part_Application.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesCategory = selectedCategory === 'All' || part.Part_Catagory === selectedCategory;
-    const matchesFocusGroup = selectedFocusGroup === 'All' || part.Focus_Group === selectedFocusGroup;
-    const matchesStatus = statusFilter === 'All' || part.Item_Status === statusFilter;
-    
-    return matchesSearch && matchesCategory && matchesFocusGroup && matchesStatus;
-  });
+  const filteredParts = parts;
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, [searchTerm, selectedCategory, selectedFocusGroup, statusFilter]);
 
   const handleAddPart = () => {
     setFormData({
@@ -124,8 +142,11 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
         await partsAPI.createPart(formData);
         setShowAddModal(false);
       }
-      const res = await partsAPI.getParts({ limit: 100 });
+      const res = await partsAPI.getParts({ page: pagination.page, limit: pagination.limit });
       setParts(res.data?.parts || []);
+      if (res.data?.pagination) {
+        setPagination(prev => ({ ...prev, total: res.data.pagination.total, pages: res.data.pagination.pages }));
+      }
     } catch (err) {
       setError('Failed to save part. Please try again.');
     } finally {
@@ -879,6 +900,31 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
           );
         })}
       </div>
+
+      {/* Pagination */}
+      {pagination.pages > 1 && !loading && !error && (
+        <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-4">
+          <p className="text-sm text-gray-600">
+            Page {pagination.page} of {pagination.pages} ({pagination.total} total parts)
+          </p>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+              disabled={pagination.page === 1}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
+              disabled={pagination.page === pagination.pages}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading && (
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-12 text-center">

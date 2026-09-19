@@ -108,6 +108,32 @@ export const partCreateSchema = Joi.object({
   Item_Status: Joi.string().valid('Active', 'Inactive', 'Discontinued')
 });
 
+export const partUpdateSchema = Joi.object({
+  Part_Name: Joi.string().max(255),
+  Part_Price: Joi.number().min(0),
+  Part_MinQty: Joi.number().min(0),
+  Part_BasicDisc: Joi.number().min(0).max(100),
+  Part_SchemeDisc: Joi.number().min(0).max(100),
+  Part_AdditionalDisc: Joi.number().min(0).max(100),
+  Part_Application: Joi.string().max(1000),
+  Part_Catagory: Joi.string().max(100),
+  Focus_Group: Joi.string().max(100),
+  Item_Status: Joi.string().valid('Active', 'Inactive', 'Discontinued'),
+  Is_Order_Pad: Joi.number().integer().valid(0, 1),
+  Order_Pad_Category: Joi.number().integer(),
+  T1: Joi.number().integer().min(0),
+  T2: Joi.number().integer().min(0),
+  T3: Joi.number().integer().min(0),
+  T4: Joi.number().integer().min(0),
+  T5: Joi.number().integer().min(0),
+  GuruPoint: Joi.number().integer().min(0),
+  ChampionPoint: Joi.number().integer().min(0),
+  Alternate_PartNumber: Joi.string().max(500),
+  Previous_PartNumber: Joi.string().max(100),
+  Part_Discount: Joi.string().max(10),
+  Part_Image: Joi.string().uri().allow('', null)
+}).min(1);
+
 // Order validation schemas
 export const orderCreateSchema = Joi.object({
   retailer_id: Joi.number().required(),
