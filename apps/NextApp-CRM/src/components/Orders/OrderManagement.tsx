@@ -27,6 +27,7 @@ import { format } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
 import { NewOrderFormModal } from './NewOrderForm';
 import { ordersAPI } from '../../services/api';
+import * as XLSX from 'xlsx';
 
 export const OrderManagement: React.FC = () => {
   const { user, canAccessStore, getAccessibleStores, getAccessibleRetailers } = useAuth();
@@ -42,6 +43,22 @@ export const OrderManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // The workflow steps an order moves through, in order
+  const statusWorkflow: OrderStatus[] = ['New', 'Pending', 'Processing', 'Hold', 'Picked', 'Dispatched', 'Completed', 'Cancelled'];
+
+  const allowedTransitions: Record<string, OrderStatus[]> = {
+    New: ['Pending', 'Processing', 'Hold', 'Cancelled'],
+    Pending: ['Processing', 'Hold', 'Cancelled'],
+    Processing: ['Picked', 'Hold', 'Cancelled'],
+    Hold: ['Pending', 'Processing', 'Cancelled'],
+    Picked: ['Dispatched', 'Hold'],
+    Dispatched: ['Completed'],
+    Completed: [],
+    Cancelled: [],
+  };
 
   // Load orders from API
   useEffect(() => {
@@ -51,7 +68,11 @@ export const OrderManagement: React.FC = () => {
         setError(null);
 
         const params: any = { page: currentPage, limit: 50 };
-        
+
+        // Server-side filters so they apply across all pages
+        if (statusFilter !== 'all') params.status = statusFilter;
+        if (urgencyFilter !== 'all') params.urgent = urgencyFilter === 'urgent' ? 'true' : 'false';
+
         // Add role-based filtering
         if (user?.role === 'retailer') {
           params.retailer_id = user.retailer_id;
@@ -75,7 +96,12 @@ export const OrderManagement: React.FC = () => {
     if (user) {
       loadOrders();
     }
-  }, [user, currentPage]);
+  }, [user, currentPage, statusFilter, urgencyFilter]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, urgencyFilter, searchTerm]);
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
@@ -90,6 +116,59 @@ export const OrderManagement: React.FC = () => {
     
     return matchesSearch && matchesStatus && matchesUrgency;
   });
+
+  const handleUpdateOrderStatus = async (newStatus: OrderStatus) => {
+    if (!selectedOrder) return;
+    try {
+      setIsUpdatingStatus(true);
+      setStatusUpdateError(null);
+      await ordersAPI.updateOrderStatus(selectedOrder.Order_Id, { status: newStatus });
+
+      // Refresh orders list to reflect the new status
+      const params: any = { page: currentPage, limit: 50 };
+      if (user?.role === 'retailer') params.retailer_id = user.retailer_id;
+      else if (user?.store_id) params.branch = user.store_id;
+      const ordersResponse = await ordersAPI.getOrders(params);
+      setOrders(ordersResponse.data.orders || []);
+      setPagination(ordersResponse.data.pagination || { page: 1, limit: 50, total: 0, pages: 0 });
+
+      // Refresh the open order detail
+      const detailResponse = await ordersAPI.getOrder(selectedOrder.Order_Id);
+      setSelectedOrder(detailResponse.data);
+    } catch (err: any) {
+      const apiError = err?.response?.data?.error;
+      setStatusUpdateError(apiError || 'Failed to update order status. Please try again.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleExport = () => {
+    const exportRows = [
+      ['Order ID', 'CRM Order ID', 'PO Number', 'Status', 'Urgency', 'Branch', 'Retailer', 'Placed By', 'Placed Date', 'Remark'],
+      ...filteredOrders.map(order => [
+        order.Order_Id,
+        order.CRMOrderId || '',
+        order.PO_Number || '',
+        order.Order_Status || '',
+        order.Urgent_Status ? 'Urgent' : 'Normal',
+        order.Branch_Name || order.Branch || '',
+        order.Retailer_Name || '',
+        order.Place_By || '',
+        order.Place_Date ? format(timestampToDate(order.Place_Date)!, 'yyyy-MM-dd HH:mm') : '',
+        order.Remark || '',
+      ]),
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+    worksheet['!cols'] = [
+      { wch: 9 }, { wch: 18 }, { wch: 16 }, { wch: 12 }, { wch: 9 },
+      { wch: 22 }, { wch: 24 }, { wch: 16 }, { wch: 18 }, { wch: 30 }
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
+    XLSX.writeFile(workbook, `orders-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+  };
 
   const getStatusIcon = (status?: OrderStatus) => {
     switch (status) {
@@ -410,19 +489,44 @@ export const OrderManagement: React.FC = () => {
             )}
           </div>
 
-          <div className="p-6 border-t border-gray-200 flex justify-end space-x-4">
-            <button
-              onClick={() => setShowOrderDetails(false)}
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Close
-            </button>
-            {user?.role !== 'retailer' && (
-              <button className="px-6 py-3 bg-[#003366] text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2">
-                <Edit className="w-4 h-4" />
-                <span>Edit Order</span>
-              </button>
+          <div className="p-6 border-t border-gray-200">
+            {statusUpdateError && (
+              <p className="mb-3 text-sm text-red-600 text-right">{statusUpdateError}</p>
             )}
+            <div className="flex justify-end items-center space-x-4">
+              <button
+                onClick={() => setShowOrderDetails(false)}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              {user?.role !== 'retailer' && selectedOrder && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Move to:</span>
+                  {(allowedTransitions[selectedOrder.Order_Status as string] || []).map(nextStatus => (
+                    <button
+                      key={nextStatus}
+                      onClick={() => handleUpdateOrderStatus(nextStatus)}
+                      disabled={isUpdatingStatus}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        nextStatus === 'Cancelled'
+                          ? 'bg-red-600 text-white hover:bg-red-700'
+                          : nextStatus === 'Hold'
+                          ? 'bg-orange-600 text-white hover:bg-orange-700'
+                          : 'bg-[#003366] text-white hover:bg-blue-800'
+                      }`}
+                    >
+                      {nextStatus}
+                    </button>
+                  ))}
+                  {(allowedTransitions[selectedOrder.Order_Status as string] || []).length === 0 && (
+                    <span className="text-sm text-gray-500 italic">
+                      This order is {selectedOrder.Order_Status} and can no longer be changed
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -440,11 +544,18 @@ export const OrderManagement: React.FC = () => {
           </p>
         </div>
         <div className="flex space-x-3">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
+          <button
+            onClick={() => alert('CSV import is not available yet. Please contact your administrator to import order data.')}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+          >
             <Upload className="w-5 h-5" />
             <span>Import</span>
           </button>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+          <button
+            onClick={handleExport}
+            disabled={filteredOrders.length === 0}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Download className="w-5 h-5" />
             <span>Export</span>
           </button>

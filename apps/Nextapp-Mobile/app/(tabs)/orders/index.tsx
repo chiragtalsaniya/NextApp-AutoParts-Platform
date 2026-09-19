@@ -113,9 +113,9 @@ export default function OrdersScreen() {
           const dateB2 = new Date(b.orderDate || b.created_at).getTime();
           return dateA2 - dateB2;
         case 'amount_desc':
-          return (b.totalAmount || 0) - (a.totalAmount || 0);
+          return ((b.totalAmount ?? (b as any).order_total) || 0) - ((a.totalAmount ?? (a as any).order_total) || 0);
         case 'amount_asc':
-          return (a.totalAmount || 0) - (b.totalAmount || 0);
+          return ((a.totalAmount ?? (a as any).order_total) || 0) - ((b.totalAmount ?? (b as any).order_total) || 0);
         case 'status':
           return (a.status || a.Order_Status || '').localeCompare(b.status || b.Order_Status || '');
         default:
@@ -398,7 +398,7 @@ export default function OrdersScreen() {
             </View>
             
             <View style={styles.orderAmount}>
-              <Text style={styles.amountText}>{formatCurrency(item.totalAmount || (item as any).ItemAmount || 0)}</Text>
+              <Text style={styles.amountText}>{formatCurrency(item.totalAmount || (item as any).order_total || (item as any).ItemAmount || 0)}</Text>
               <Text style={styles.itemCount}>
                 {(item as any).itemCount || item.items?.length || 0} item{((item as any).itemCount || item.items?.length || 0) !== 1 ? 's' : ''}
               </Text>

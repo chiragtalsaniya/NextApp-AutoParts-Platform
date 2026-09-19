@@ -142,10 +142,16 @@ router.get('/', authenticateToken, async (req, res) => {
         r.Retailer_Name,
         r.Contact_Person,
         s.Branch_Name,
-        s.Company_Name
+        s.Company_Name,
+        COALESCE(item_totals.order_total, 0) as order_total
       FROM order_master om
       LEFT JOIN retailers r ON om.Retailer_Id = r.Retailer_Id
       LEFT JOIN stores s ON om.Branch = s.Branch_Code
+      LEFT JOIN (
+        SELECT Order_Id, SUM(ItemAmount) as order_total
+        FROM order_items
+        GROUP BY Order_Id
+      ) item_totals ON om.Order_Id = item_totals.Order_Id
       ${whereClause}
       ORDER BY om.Place_Date DESC
       LIMIT ? OFFSET ?
