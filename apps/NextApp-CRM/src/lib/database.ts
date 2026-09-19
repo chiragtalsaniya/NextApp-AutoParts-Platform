@@ -26,13 +26,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle specific error cases
     if (error.response) {
-      // Server responded with an error status
       if (error.response.status === 401) {
-        // Unauthorized - clear token and redirect to login
-        localStorage.removeItem('auth_token');
-        window.location.href = '/login';
+        // Only redirect if we're not already on the login page
+        const isOnLogin = window.location.pathname === '/login' || window.location.pathname === '/unauthorized';
+        if (!isOnLogin) {
+          localStorage.removeItem('auth_token');
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

@@ -1,6 +1,18 @@
 import jwt from 'jsonwebtoken';
 import { executeQuery } from '../config/database.js';
 
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('FATAL: JWT_SECRET is not set. Refusing to start in production without a secret.');
+      process.exit(1);
+    }
+    return 'dev-only-insecure-secret';
+  }
+  return secret;
+}
+
 export const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -10,8 +22,8 @@ export const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    
+    const decoded = jwt.verify(token, getJwtSecret());
+
     // Get user from database
     const users = await executeQuery(
       'SELECT * FROM users WHERE id = ? AND is_active = TRUE',
@@ -25,7 +37,10 @@ export const authenticateToken = async (req, res, next) => {
     req.user = users[0];
     next();
   } catch (error) {
-    return res.status(403).json({ error: 'Invalid token' });
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired' });
+    }
+    return res.status(401).json({ error: 'Invalid token' });
   }
 };
 
@@ -54,7 +69,7 @@ export const authorizeCompanyAccess = async (req, res, next) => {
   }
 
   const companyId = req.params.companyId || req.body.company_id;
-  
+
   if (!companyId) {
     return res.status(400).json({ error: 'Company ID required' });
   }
@@ -78,7 +93,7 @@ export const authorizeStoreAccess = async (req, res, next) => {
   }
 
   const storeId = req.params.storeId || req.body.store_id;
-  
+
   if (!storeId) {
     return res.status(400).json({ error: 'Store ID required' });
   }
@@ -89,11 +104,11 @@ export const authorizeStoreAccess = async (req, res, next) => {
       'SELECT * FROM stores WHERE Branch_Code = ? AND company_id = ?',
       [storeId, req.user.company_id]
     );
-    
+
     if (stores.length === 0) {
       return res.status(403).json({ error: 'Access denied to this store' });
     }
-    
+
     return next();
   }
 

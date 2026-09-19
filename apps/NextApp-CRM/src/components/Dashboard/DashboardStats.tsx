@@ -1,30 +1,23 @@
-import React from 'react';
-import { Building2, Store, Users, Package, ShoppingCart, TrendingUp, UserCheck, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Building2, Store, Users, Package, ShoppingCart, TrendingUp, UserCheck, AlertTriangle, PackageCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { dashboardAPI } from '../../services/api';
 
 interface StatCardProps {
   title: string;
   value: string | number;
   icon: React.ComponentType<any>;
-  change?: string;
-  changeType?: 'positive' | 'negative';
+  loading?: boolean;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, change, changeType }) => (
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, loading }) => (
   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
     <div className="flex items-center justify-between">
       <div className="flex-1">
         <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">{title}</p>
-        <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{value}</p>
-        {change && (
-          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            changeType === 'positive' 
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-          }`}>
-            {change}
-          </div>
-        )}
+        <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          {loading ? <span className="inline-block w-8 h-8 border-2 border-gray-300 border-t-[#003366] rounded-full animate-spin" /> : value}
+        </p>
       </div>
       <div className="bg-gradient-to-br from-[#003366] to-blue-600 p-3 rounded-xl shadow-lg">
         <Icon className="w-7 h-7 text-white" />
@@ -33,75 +26,110 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, change, c
   </div>
 );
 
+const formatNumber = (n: number): string => {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
+};
+
+const formatCurrency = (cents: number): string => {
+  const dollars = cents / 100;
+  if (dollars >= 1000) return `$${(dollars / 1000).toFixed(1)}K`;
+  return `$${dollars.toFixed(0)}`;
+};
+
 export const DashboardStats: React.FC = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const getStatsForRole = () => {
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const response = await dashboardAPI.getStats();
+        setStats(response.data || {});
+        setError(false);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, [user?.role]);
+
+  const getStatsForRole = (): { title: string; value: string | number; icon: React.ComponentType<any> }[] => {
+    if (error) return [];
+
     switch (user?.role) {
       case 'super_admin':
         return [
-          { title: 'Total Companies', value: 12, icon: Building2, change: '+2 this month', changeType: 'positive' as const },
-          { title: 'Total Stores', value: 48, icon: Store, change: '+5 this month', changeType: 'positive' as const },
-          { title: 'Active Users', value: 234, icon: Users, change: '+12 this week', changeType: 'positive' as const },
-          { title: 'Total Parts', value: '12.5K', icon: Package, change: '+156 this week', changeType: 'positive' as const },
-          { title: 'Orders Today', value: 89, icon: ShoppingCart, change: '+23% vs yesterday', changeType: 'positive' as const },
-          { title: 'System Revenue', value: '$145.2K', icon: TrendingUp, change: '+18% this month', changeType: 'positive' as const },
+          { title: 'Total Companies', value: formatNumber(stats.companies || 0), icon: Building2 },
+          { title: 'Total Stores', value: formatNumber(stats.stores || 0), icon: Store },
+          { title: 'Active Users', value: formatNumber(stats.activeUsers || 0), icon: Users },
+          { title: 'Total Parts', value: formatNumber(stats.totalParts || 0), icon: Package },
+          { title: 'Orders Today', value: stats.ordersToday || 0, icon: ShoppingCart },
+          { title: 'System Revenue', value: formatCurrency(stats.totalRevenue || 0), icon: TrendingUp },
         ];
       case 'admin':
         return [
-          { title: 'Company Stores', value: 8, icon: Store, change: '+1 this month', changeType: 'positive' as const },
-          { title: 'Company Users', value: 45, icon: Users, change: '+3 this week', changeType: 'positive' as const },
-          { title: 'Total Parts', value: '3.2K', icon: Package, change: '+45 this week', changeType: 'positive' as const },
-          { title: 'Orders Today', value: 23, icon: ShoppingCart, change: '+12% vs yesterday', changeType: 'positive' as const },
-          { title: 'Active Retailers', value: 156, icon: UserCheck, change: '+8 this month', changeType: 'positive' as const },
-          { title: 'Company Revenue', value: '$45.2K', icon: TrendingUp, change: '+15% this month', changeType: 'positive' as const },
+          { title: 'Company Stores', value: stats.stores || 0, icon: Store },
+          { title: 'Company Users', value: stats.companyUsers || 0, icon: Users },
+          { title: 'Total Parts', value: formatNumber(stats.totalParts || 0), icon: Package },
+          { title: 'Orders Today', value: stats.ordersToday || 0, icon: ShoppingCart },
+          { title: 'Active Retailers', value: stats.activeRetailers || 0, icon: UserCheck },
+          { title: 'Company Revenue', value: formatCurrency(stats.totalRevenue || 0), icon: TrendingUp },
         ];
       case 'manager':
         return [
-          { title: 'Store Inventory', value: '1.8K', icon: Package, change: '+12 new parts', changeType: 'positive' as const },
-          { title: 'Pending Orders', value: 15, icon: ShoppingCart, change: '-3 from yesterday', changeType: 'positive' as const },
-          { title: 'Store Staff', value: 8, icon: Users, change: 'All active', changeType: 'positive' as const },
-          { title: 'Store Retailers', value: 24, icon: UserCheck, change: '+2 this month', changeType: 'positive' as const },
-          { title: 'Regions Managed', value: 3, icon: MapPin, change: 'Active coverage', changeType: 'positive' as const },
-          { title: 'Low Stock Items', value: 5, icon: Package, change: 'Needs attention', changeType: 'negative' as const },
+          { title: 'Store Inventory', value: formatNumber(stats.storeInventory || 0), icon: Package },
+          { title: 'Pending Orders', value: stats.pendingOrders || 0, icon: ShoppingCart },
+          { title: 'Store Staff', value: stats.storeStaff || 0, icon: Users },
+          { title: 'Store Retailers', value: stats.storeRetailers || 0, icon: UserCheck },
+          { title: 'Orders Today', value: stats.ordersToday || 0, icon: TrendingUp },
+          { title: 'Low Stock Items', value: stats.lowStockItems || 0, icon: AlertTriangle },
         ];
       case 'storeman':
         return [
-          { title: 'Available Parts', value: '1.2K', icon: Package, change: '+25 restocked', changeType: 'positive' as const },
-          { title: 'Orders Today', value: 8, icon: ShoppingCart, change: '+2 from yesterday', changeType: 'positive' as const },
-          { title: 'Pending Tasks', value: 3, icon: Users, change: 'In progress', changeType: 'positive' as const },
-          { title: 'Completed Orders', value: 12, icon: TrendingUp, change: '+4 today', changeType: 'positive' as const },
+          { title: 'Available Parts', value: formatNumber(stats.availableParts || 0), icon: Package },
+          { title: 'Orders Today', value: stats.ordersToday || 0, icon: ShoppingCart },
+          { title: 'Pending Tasks', value: stats.pendingTasks || 0, icon: Users },
+          { title: 'Completed Orders', value: stats.completedOrders || 0, icon: PackageCheck },
         ];
       case 'salesman':
         return [
-          { title: 'My Retailers', value: 15, icon: UserCheck, change: '+1 new client', changeType: 'positive' as const },
-          { title: 'Orders Created', value: 6, icon: ShoppingCart, change: '+2 today', changeType: 'positive' as const },
-          { title: 'Available Parts', value: '1.2K', icon: Package, change: 'In stock', changeType: 'positive' as const },
-          { title: 'Sales Target', value: '85%', icon: TrendingUp, change: '+5% this week', changeType: 'positive' as const },
+          { title: 'My Retailers', value: stats.myRetailers || 0, icon: UserCheck },
+          { title: 'Orders Created', value: stats.ordersCreated || 0, icon: ShoppingCart },
+          { title: 'Available Parts', value: formatNumber(stats.availableParts || 0), icon: Package },
+          { title: 'Orders Today', value: stats.ordersToday || 0, icon: TrendingUp },
         ];
       case 'retailer':
         return [
-          { title: 'My Orders', value: 12, icon: ShoppingCart, change: '+2 this week', changeType: 'positive' as const },
-          { title: 'Pending Orders', value: 3, icon: Package, change: 'Processing', changeType: 'positive' as const },
-          { title: 'Credit Available', value: '$2.5K', icon: TrendingUp, change: 'Good standing', changeType: 'positive' as const },
-          { title: 'Order History', value: 45, icon: Users, change: 'Total orders', changeType: 'positive' as const },
+          { title: 'My Orders', value: stats.myOrders || 0, icon: ShoppingCart },
+          { title: 'Pending Orders', value: stats.pendingOrders || 0, icon: Package },
+          { title: 'Credit Available', value: formatCurrency((stats.creditAvailable || 0) * 100), icon: TrendingUp },
+          { title: 'Completed Orders', value: stats.completedOrders || 0, icon: PackageCheck },
         ];
       default:
-        return [
-          { title: 'Available Parts', value: '1.2K', icon: Package },
-          { title: 'Orders Today', value: 8, icon: ShoppingCart },
-          { title: 'Pending Tasks', value: 3, icon: Users },
-          { title: 'Completed', value: 12, icon: TrendingUp },
-        ];
+        return [];
     }
   };
 
-  const stats = getStatsForRole();
+  const statCards = getStatsForRole();
+
+  if (error) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700 text-center">
+        <p className="text-gray-500 dark:text-gray-400">Unable to load dashboard statistics. Please try again later.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {stats.map((stat, index) => (
-        <StatCard key={index} {...stat} />
+      {statCards.map((stat, index) => (
+        <StatCard key={index} {...stat} loading={loading} />
       ))}
     </div>
   );

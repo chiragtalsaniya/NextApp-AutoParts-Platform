@@ -171,8 +171,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Normalize user data to ensure consistent field names
       const normalizedUser = normalizeUserData(response.user);
       
-      console.log('🔐 Normalized user data:', normalizedUser);
-      
       dispatch({ type: 'AUTH_SUCCESS', payload: normalizedUser });
       router.replace('/(tabs)');
     } catch (error: any) {

@@ -200,6 +200,12 @@ export const regionsAPI = {
     api.delete(`/regions/${id}`)
 };
 
+// Dashboard API
+export const dashboardAPI = {
+  getStats: () =>
+    api.get('/dashboard/stats')
+};
+
 // Reports API
 export const reportsAPI = {
   getOrderReport: (params?: any) => 

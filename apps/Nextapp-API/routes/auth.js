@@ -3,17 +3,26 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { executeQuery } from '../config/database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { validateRequest, loginSchema, changePasswordSchema } from '../middleware/validation.js';
 
 const router = express.Router();
 
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('FATAL: JWT_SECRET is not set. Refusing to start in production without a secret.');
+      process.exit(1);
+    }
+    return 'dev-only-insecure-secret';
+  }
+  return secret;
+}
+
 // Login endpoint
-router.post('/login', async (req, res) => {
+router.post('/login', validateRequest(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
 
     // Get user from database
     const users = await executeQuery(
@@ -42,7 +51,7 @@ router.post('/login', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'your-secret-key',
+      getJwtSecret(),
       { expiresIn: '24h' }
     );
 
@@ -71,13 +80,9 @@ router.get('/profile', authenticateToken, async (req, res) => {
 });
 
 // Change password
-router.post('/change-password', authenticateToken, async (req, res) => {
+router.post('/change-password', authenticateToken, validateRequest(changePasswordSchema), async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Current and new passwords are required' });
-    }
 
     // Verify current password
     const isValidPassword = await bcrypt.compare(currentPassword, req.user.password_hash);
@@ -105,10 +110,9 @@ router.post('/change-password', authenticateToken, async (req, res) => {
 // Refresh token
 router.post('/refresh', authenticateToken, async (req, res) => {
   try {
-    // Generate new token
     const token = jwt.sign(
       { userId: req.user.id, email: req.user.email, role: req.user.role },
-      process.env.JWT_SECRET || 'your-secret-key',
+      getJwtSecret(),
       { expiresIn: '24h' }
     );
 
@@ -117,6 +121,21 @@ router.post('/refresh', authenticateToken, async (req, res) => {
     console.error('Refresh token error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Logout endpoint
+router.post('/logout', authenticateToken, async (req, res) => {
+  // JWT is stateless - client simply discards the token.
+  // Update last_logout timestamp for audit purposes.
+  try {
+    await executeQuery(
+      'UPDATE users SET last_logout = NOW() WHERE id = ?',
+      [req.user.id]
+    );
+  } catch {
+    // Non-critical: logout succeeds even if DB update fails
+  }
+  res.json({ message: 'Logged out successfully' });
 });
 
 export default router;

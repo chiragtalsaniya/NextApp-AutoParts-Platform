@@ -13,6 +13,17 @@ export const validateRequest = (schema) => {
   };
 };
 
+// Auth validation schemas
+export const loginSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().min(1).max(255).required()
+});
+
+export const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().min(1).max(255).required(),
+  newPassword: Joi.string().min(8).max(255).required()
+});
+
 // User validation schemas
 export const userCreateSchema = Joi.object({
   name: Joi.string().min(2).max(255).required(),

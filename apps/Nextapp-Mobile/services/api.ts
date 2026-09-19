@@ -57,13 +57,6 @@ class ApiService {
   private refreshSubscribers: RefreshSubscriber[] = [];
 
   constructor() {
-    console.log('🌐 API Base URL:', API_BASE_URL);
-    console.log('🔧 Platform:', Platform.OS);
-    console.log(
-      '🏗️ Environment:',
-      process.env.EXPO_PUBLIC_APP_ENV || 'production',
-    );
-
     this.api = axios.create({
       baseURL: API_BASE_URL,
       timeout: 60000,
@@ -104,10 +97,6 @@ class ApiService {
           }
         }
 
-        console.log(
-          `🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`,
-        );
-
         return config;
       },
       (error) => {
@@ -118,20 +107,9 @@ class ApiService {
 
     this.api.interceptors.response.use(
       (response: AxiosResponse) => {
-        console.log(`✅ API Response: ${response.status} ${response.config.url}`);
         return response;
       },
       async (error) => {
-        console.error('❌ API Error Details:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          url: error.config?.url,
-          method: error.config?.method,
-          message: error.message,
-          code: error.code,
-          data: error.response?.data,
-        });
-
         const originalRequest = error.config as RetryableRequestConfig | undefined;
         const requestUrl = originalRequest?.url || '';
         const isAuthRequest =
