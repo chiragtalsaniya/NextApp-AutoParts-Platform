@@ -118,6 +118,9 @@ router.put('/:id',
       const updateData = req.body;
 
       const fields = Object.keys(updateData);
+      if (fields.length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
       const values = Object.values(updateData);
       const setClause = fields.map(field => `${field} = ?`).join(', ');
 

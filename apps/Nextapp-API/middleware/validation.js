@@ -182,12 +182,12 @@ export const partUpdateSchema = Joi.object({
 }).min(1);
 
 export const partStockUpdateSchema = Joi.object({
-  T1: Joi.number().integer().min(0).required(),
-  T2: Joi.number().integer().min(0).required(),
-  T3: Joi.number().integer().min(0).required(),
-  T4: Joi.number().integer().min(0).required(),
-  T5: Joi.number().integer().min(0).required()
-});
+  T1: Joi.number().integer().min(0),
+  T2: Joi.number().integer().min(0),
+  T3: Joi.number().integer().min(0),
+  T4: Joi.number().integer().min(0),
+  T5: Joi.number().integer().min(0)
+}).min(1);
 
 export const orderStatusUpdateSchema = Joi.object({
   status: Joi.string().valid('New', 'Pending', 'Processing', 'Hold', 'Picked', 'Dispatched', 'Completed', 'Cancelled').required(),

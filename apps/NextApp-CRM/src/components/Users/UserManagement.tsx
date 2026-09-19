@@ -23,6 +23,8 @@ import {
 import { User, UserRole, Company, Store as StoreType, Retailer } from '../../types';
 import { usersAPI, companiesAPI, storesAPI, retailersAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 
 export const UserManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -107,6 +109,7 @@ export const UserManagement: React.FC = () => {
   const handleSaveUser = async () => {
     try {
       setLoading(true);
+      setError(null);
       if (showEditModal && selectedUser) {
         await usersAPI.updateUser(selectedUser.id, formData);
       } else if (showAddModal) {
@@ -117,14 +120,52 @@ export const UserManagement: React.FC = () => {
       setUsers(usersRes.data.users || []);
       setShowEditModal(false);
       setShowAddModal(false);
-    } catch (err) {
-      setError('Failed to save user. Please try again.');
+    } catch (err: any) {
+      const apiError = err?.response?.data?.error || err?.response?.data?.details?.[0];
+      setError(apiError || 'Failed to save user. Please try again.');
     } finally {
       setLoading(false);
       setFormData({});
       setSelectedUser(null);
       setProfileImagePreview('');
     }
+  };
+
+  const handleToggleActive = async (user: User) => {
+    try {
+      setError(null);
+      await usersAPI.updateUserStatus(user.id, !user.is_active);
+      setUsers(prev =>
+        prev.map(u => (u.id === user.id ? { ...u, is_active: !user.is_active } : u))
+      );
+    } catch (err: any) {
+      const apiError = err?.response?.data?.error || err?.response?.data?.details?.[0];
+      setError(apiError || 'Failed to update user status. Please try again.');
+    }
+  };
+
+  const handleExport = () => {
+    const exportRows = [
+      ['Name', 'Email', 'Role', 'Company', 'Store', 'Retailer', 'Active', 'Created'],
+      ...filteredUsers.map(user => [
+        user.name,
+        user.email,
+        user.role,
+        getCompanyName(user.company_id),
+        getStoreName(user.store_id),
+        user.role === 'retailer' && user.retailer_id ? getRetailerName(user.retailer_id) : '',
+        user.is_active ? 'Yes' : 'No',
+        user.created_at ? format(new Date(user.created_at), 'yyyy-MM-dd') : '',
+      ]),
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+    worksheet['!cols'] = [
+      { wch: 25 }, { wch: 30 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 25 }, { wch: 8 }, { wch: 12 }
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+    XLSX.writeFile(workbook, `users-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -570,15 +611,22 @@ export const UserManagement: React.FC = () => {
           <p className="text-gray-600">Manage system users with profile pictures and permissions</p>
         </div>
         <div className="flex space-x-3">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
+          <button
+            onClick={() => alert('CSV import is not available yet. Please contact your administrator to import user data.')}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+          >
             <Upload className="w-5 h-5" />
             <span>Import</span>
           </button>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+          <button
+            onClick={handleExport}
+            disabled={filteredUsers.length === 0}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Download className="w-5 h-5" />
             <span>Export</span>
           </button>
-          <button 
+          <button
             onClick={handleAddUser}
             className="bg-[#003366] text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2"
           >
@@ -744,6 +792,13 @@ export const UserManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-2">
+                      <button
+                        onClick={() => handleToggleActive(user)}
+                        title={user.is_active ? 'Deactivate user' : 'Activate user'}
+                        className={`p-2 hover:bg-gray-100 rounded-lg transition-colors ${user.is_active ? 'text-green-600' : 'text-gray-400'}`}
+                      >
+                        {user.is_active ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                      </button>
                       <button 
                         onClick={() => handleViewUser(user)}
                         className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"

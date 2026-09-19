@@ -268,16 +268,20 @@ router.patch('/:partNumber/stock',
   async (req, res) => {
     try {
       const partNumber = req.params.partNumber;
-      const { T1, T2, T3, T4, T5 } = req.body;
+      const stockFields = ['T1', 'T2', 'T3', 'T4', 'T5'];
+      const provided = stockFields.filter(f => req.body[f] !== undefined);
+
+      const setClauses = provided.map(f => `${f} = ?`);
+      const values = provided.map(f => req.body[f]);
 
       const updateQuery = `
-        UPDATE parts 
-        SET T1 = ?, T2 = ?, T3 = ?, T4 = ?, T5 = ?, Last_Sync = ?
+        UPDATE parts
+        SET ${setClauses.join(', ')}, Last_Sync = ?
         WHERE Part_Number = ?
       `;
 
       const result = await executeQuery(updateQuery, [
-        T1 || 0, T2 || 0, T3 || 0, T4 || 0, T5 || 0,
+        ...values,
         Date.now(),
         partNumber
       ]);

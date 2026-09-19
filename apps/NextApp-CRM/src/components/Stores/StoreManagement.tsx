@@ -24,6 +24,8 @@ import { useAuth } from '../../context/AuthContext';
 import { storesAPI } from '../../services/api';
 import { companiesAPI } from '../../services/api';
 import { Tooltip } from 'react-tooltip'; // Add a tooltip library if not present
+import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 
 export const StoreManagement: React.FC = () => {
   const { user, canAccessStore } = useAuth();
@@ -122,6 +124,32 @@ export const StoreManagement: React.FC = () => {
     if (!canAccessStore(store.Branch_Code)) return;
     setSelectedStore(store);
     setShowViewModal(true);
+  };
+
+  const handleExport = () => {
+    const exportRows = [
+      ['Branch Code', 'Branch Name', 'Company', 'Address', 'Phone', 'Email', 'Manager', 'Manager Mobile', 'Branch URL'],
+      ...filteredStores.map(store => [
+        store.Branch_Code,
+        store.Branch_Name || '',
+        store.Company_Name || '',
+        store.Branch_Address || '',
+        store.Branch_Phone || '',
+        store.Branch_Email || '',
+        store.Branch_Manager || '',
+        store.Branch_Manager_Mobile || '',
+        store.Branch_URL || '',
+      ]),
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+    worksheet['!cols'] = [
+      { wch: 12 }, { wch: 28 }, { wch: 22 }, { wch: 40 }, { wch: 16 },
+      { wch: 28 }, { wch: 20 }, { wch: 16 }, { wch: 24 }
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Stores');
+    XLSX.writeFile(workbook, `stores-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
   const handleSaveStore = async () => {
@@ -583,11 +611,18 @@ export const StoreManagement: React.FC = () => {
           </p>
         </div>
         <div className="flex space-x-3">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
+          <button
+            onClick={() => alert('CSV import is not available yet. Please contact your administrator to import store data.')}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+          >
             <Upload className="w-5 h-5" />
             <span>Import</span>
           </button>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+          <button
+            onClick={handleExport}
+            disabled={filteredStores.length === 0}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Download className="w-5 h-5" />
             <span>Export</span>
           </button>

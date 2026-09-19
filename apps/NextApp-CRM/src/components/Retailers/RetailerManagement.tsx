@@ -28,6 +28,8 @@ import {
 import { Retailer } from '../../types';
 import { retailersAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 
 export const RetailerManagement: React.FC = () => {
   const { user } = useAuth();
@@ -722,11 +724,18 @@ export const RetailerManagement: React.FC = () => {
           <p className="text-gray-600">Comprehensive retailer database with image management</p>
         </div>
         <div className="flex space-x-3">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
+          <button
+            onClick={() => alert('CSV import is not available yet. Please contact your administrator to import retailer data.')}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+          >
             <Upload className="w-5 h-5" />
             <span>Import</span>
           </button>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+          <button
+            onClick={handleExport}
+            disabled={filteredRetailers.length === 0}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Download className="w-5 h-5" />
             <span>Export</span>
           </button>
