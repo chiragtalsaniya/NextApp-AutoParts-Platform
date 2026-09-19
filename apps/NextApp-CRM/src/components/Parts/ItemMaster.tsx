@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Part, PartCategory, FocusGroup } from '../../types';
 import { partsAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 interface ItemMasterProps {
   onPartSelect?: (part: Part) => void;
@@ -27,6 +28,8 @@ interface ItemMasterProps {
 }
 
 export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionMode = false }) => {
+  const { user } = useAuth();
+  const canManageParts = ['super_admin', 'admin', 'manager'].includes(user?.role || '');
   const [parts, setParts] = useState<Part[]>([]);
   const [categories, setCategories] = useState<PartCategory[]>([]);
   const [focusGroups, setFocusGroups] = useState<FocusGroup[]>([]);
@@ -706,13 +709,15 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
             <Download className="w-5 h-5" />
             <span>Export</span>
           </button>
-          <button 
-            onClick={handleAddPart}
-            className="bg-[#003366] text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add Part</span>
-          </button>
+          {canManageParts && (
+            <button 
+              onClick={handleAddPart}
+              className="bg-[#003366] text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add Part</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -879,19 +884,23 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
                         <Eye className="w-4 h-4" />
                         <span>View</span>
                       </button>
-                      <button
-                        onClick={() => handleEditPart(part)}
-                        className="flex-1 bg-[#003366] text-white px-3 py-2 rounded-lg hover:bg-blue-800 transition-colors text-sm flex items-center justify-center space-x-1"
-                      >
-                        <Edit className="w-4 h-4" />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeletePart(part.Part_Number)}
-                        className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canManageParts && (
+                        <>
+                          <button
+                            onClick={() => handleEditPart(part)}
+                            className="flex-1 bg-[#003366] text-white px-3 py-2 rounded-lg hover:bg-blue-800 transition-colors text-sm flex items-center justify-center space-x-1"
+                          >
+                            <Edit className="w-4 h-4" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeletePart(part.Part_Number)}
+                            className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -944,12 +953,14 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
           />
           <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No parts found</h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">Try adjusting your search criteria or add a new part.</p>
-          <button
-            onClick={handleAddPart}
-            className="inline-flex items-center px-5 py-2.5 bg-[#003366] text-white rounded-lg hover:bg-blue-800 transition-colors mt-2"
-          >
-            <Plus className="w-4 h-4 mr-2" /> Add Part
-          </button>
+          {canManageParts && (
+            <button
+              onClick={handleAddPart}
+              className="inline-flex items-center px-5 py-2.5 bg-[#003366] text-white rounded-lg hover:bg-blue-800 transition-colors mt-2"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Add Part
+            </button>
+          )}
         </div>
       )}
 

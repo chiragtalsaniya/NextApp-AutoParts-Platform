@@ -103,7 +103,7 @@ export default function RetailersScreen() {
     Credit_Limit: '',
   });
 
-  const canManageRetailers = ['super_admin', 'admin', 'manager', 'salesman'].includes(
+  const canManageRetailers = ['super_admin', 'admin', 'manager'].includes(
     user?.role || ''
   );
 

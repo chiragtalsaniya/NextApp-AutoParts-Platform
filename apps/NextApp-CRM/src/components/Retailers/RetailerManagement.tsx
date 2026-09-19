@@ -33,6 +33,7 @@ import * as XLSX from 'xlsx';
 
 export const RetailerManagement: React.FC = () => {
   const { user } = useAuth();
+  const canManageRetailers = ['super_admin', 'admin', 'manager'].includes(user?.role || '');
   const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedArea, setSelectedArea] = useState('all');
@@ -701,16 +702,18 @@ export const RetailerManagement: React.FC = () => {
 
         {/* Edit Retailer Button */}
         <div className="p-6 border-t border-gray-200 dark:border-gray-800 flex justify-end space-x-4">
-          <button
-            onClick={() => {
-              onClose();
-              handleEditRetailer(retailer);
-            }}
-            className="px-6 py-3 bg-[#003366] text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2"
-          >
-            <Edit className="w-4 h-4" />
-            <span>Edit Retailer</span>
-          </button>
+          {canManageRetailers && (
+            <button
+              onClick={() => {
+                onClose();
+                handleEditRetailer(retailer);
+              }}
+              className="px-6 py-3 bg-[#003366] text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2"
+            >
+              <Edit className="w-4 h-4" />
+              <span>Edit Retailer</span>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -739,13 +742,15 @@ export const RetailerManagement: React.FC = () => {
             <Download className="w-5 h-5" />
             <span>Export</span>
           </button>
-          <button 
-            onClick={handleAddRetailer}
-            className="bg-[#003366] text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add Retailer</span>
-          </button>
+          {canManageRetailers && (
+            <button 
+              onClick={handleAddRetailer}
+              className="bg-[#003366] text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add Retailer</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -862,19 +867,23 @@ export const RetailerManagement: React.FC = () => {
                   <Eye className="w-4 h-4" />
                   <span>View</span>
                 </button>
-                <button
-                  onClick={() => handleEditRetailer(retailer)}
-                  className="flex-1 bg-[#003366] text-white px-3 py-2 rounded-lg hover:bg-blue-800 transition-colors text-sm flex items-center justify-center space-x-1"
-                >
-                  <Edit className="w-4 h-4" />
-                  <span>Edit</span>
-                </button>
-                <button
-                  onClick={() => handleDeleteRetailer(retailer.Retailer_Id)}
-                  className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {canManageRetailers && (
+                  <>
+                    <button
+                      onClick={() => handleEditRetailer(retailer)}
+                      className="flex-1 bg-[#003366] text-white px-3 py-2 rounded-lg hover:bg-blue-800 transition-colors text-sm flex items-center justify-center space-x-1"
+                    >
+                      <Edit className="w-4 h-4" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRetailer(retailer.Retailer_Id)}
+                      className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -899,12 +908,14 @@ export const RetailerManagement: React.FC = () => {
           />
           <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No retailers found</h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">Try adjusting your search criteria or add a new retailer.</p>
-          <button
-            onClick={handleAddRetailer}
-            className="inline-flex items-center px-5 py-2.5 bg-[#003366] text-white rounded-lg hover:bg-blue-800 transition-colors mt-2"
-          >
-            <Plus className="w-4 h-4 mr-2" /> Add Retailer
-          </button>
+          {canManageRetailers && (
+            <button
+              onClick={handleAddRetailer}
+              className="inline-flex items-center px-5 py-2.5 bg-[#003366] text-white rounded-lg hover:bg-blue-800 transition-colors mt-2"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Add Retailer
+            </button>
+          )}
         </div>
       )}
 

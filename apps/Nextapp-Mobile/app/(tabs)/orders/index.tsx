@@ -42,7 +42,7 @@ export default function OrdersScreen() {
   const [selectedSort, setSelectedSort] = useState<SortType>('date_desc');
   const [showFilterModal, setShowFilterModal] = useState(false);
 
-  const canCreateOrder = ['admin', 'manager', 'salesman'].includes(user?.role || '');
+  const canCreateOrder = ['admin', 'manager', 'storeman', 'salesman'].includes(user?.role || '');
   const canEditOrders = ['admin', 'manager'].includes(user?.role || '');
   const canUpdateStatus = ['admin', 'manager', 'storeman'].includes(user?.role || '');
 

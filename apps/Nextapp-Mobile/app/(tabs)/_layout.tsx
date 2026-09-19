@@ -52,7 +52,7 @@ export default function TabLayout() {
   };
 
   // Check if user should have access to reports
-  const hasReportsAccess = ['super_admin', 'admin', 'manager', 'storeman', 'salesman'].includes(user.role);
+  const hasReportsAccess = ['super_admin', 'admin', 'manager', 'storeman'].includes(user.role);
 
   return (
     <Tabs
