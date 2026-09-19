@@ -293,7 +293,7 @@ export default function OrdersScreen() {
         }
         break;
       case 'download':
-        showToast('Downloading order invoice...', 'info');
+        showToast('Order invoices are not available yet', 'info');
         break;
     }
   };

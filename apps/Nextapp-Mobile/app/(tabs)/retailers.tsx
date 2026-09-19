@@ -10,6 +10,10 @@ import {
   Dimensions,
   Alert,
   TextInput,
+  Modal,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { apiService } from '@/services/api';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -84,6 +88,20 @@ export default function RetailersScreen() {
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
   const [selectedSort, setSelectedSort] = useState<SortType>('name_asc');
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [newRetailer, setNewRetailer] = useState({
+    Retailer_Name: '',
+    Contact_Person: '',
+    Retailer_Mobile: '',
+    Retailer_Email: '',
+    Retailer_Address: '',
+    Area_Name: '',
+    Pincode: '',
+    GST_No: '',
+    Credit_Limit: '',
+  });
 
   const canManageRetailers = ['super_admin', 'admin', 'manager', 'salesman'].includes(
     user?.role || ''
@@ -225,9 +243,83 @@ export default function RetailersScreen() {
       `Contact: ${retailer.Contact_Person || 'N/A'}\nEmail: ${retailer.Retailer_Email || 'N/A'}\nCreated: ${formatDate(retailer.created_at)}`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'View Details', onPress: () => {} },
+        {
+          text: 'View Details',
+          onPress: () => {
+            Alert.alert(
+              retailer.Retailer_Name,
+              [
+                `Contact: ${retailer.Contact_Person || 'N/A'}`,
+                `Mobile: ${retailer.Retailer_Mobile || 'N/A'}`,
+                `Email: ${retailer.Retailer_Email || 'N/A'}`,
+                `Address: ${retailer.Retailer_Address || 'N/A'}`,
+                `Area: ${retailer.Area_Name || 'N/A'}`,
+                `Pincode: ${retailer.Pincode || 'N/A'}`,
+                `GST: ${retailer.GST_No || 'N/A'}`,
+                `Credit Limit: ${formatCurrency(retailer.Credit_Limit)}`,
+              ].join('\n'),
+              [{ text: 'Close' }]
+            );
+          },
+        },
       ]
     );
+  };
+
+  const handleAddRetailer = async () => {
+    if (!newRetailer.Retailer_Name.trim()) {
+      setSaveError('Retailer name is required');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      const payload: Record<string, any> = {
+        Retailer_Name: newRetailer.Retailer_Name.trim(),
+      };
+
+      const optionalFields: [keyof typeof newRetailer, string][] = [
+        ['Contact_Person', 'Contact_Person'],
+        ['Retailer_Mobile', 'Retailer_Mobile'],
+        ['Retailer_Email', 'Retailer_Email'],
+        ['Retailer_Address', 'Retailer_Address'],
+        ['Area_Name', 'Area_Name'],
+        ['Pincode', 'Pincode'],
+        ['GST_No', 'GST_No'],
+      ];
+
+      optionalFields.forEach(([key, apiField]) => {
+        const value = newRetailer[key].trim();
+        if (value) payload[apiField] = value;
+      });
+
+      if (newRetailer.Credit_Limit.trim()) {
+        const credit = parseFloat(newRetailer.Credit_Limit);
+        if (!isNaN(credit)) payload.Credit_Limit = credit;
+      }
+
+      await apiService.createRetailer(payload);
+
+      setShowAddModal(false);
+      setNewRetailer({
+        Retailer_Name: '',
+        Contact_Person: '',
+        Retailer_Mobile: '',
+        Retailer_Email: '',
+        Retailer_Address: '',
+        Area_Name: '',
+        Pincode: '',
+        GST_No: '',
+        Credit_Limit: '',
+      });
+      loadRetailers();
+    } catch (error: any) {
+      setSaveError(error.error || 'Failed to add retailer. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderRetailerItem = ({ item, index }: { item: Retailer; index: number }) => {
@@ -433,7 +525,10 @@ export default function RetailersScreen() {
               {canManageRetailers && (
                 <TouchableOpacity
                   style={styles.addButton}
-                  onPress={() => Alert.alert('Add Retailer', 'Feature coming soon!')}
+                  onPress={() => {
+                    setSaveError(null);
+                    setShowAddModal(true);
+                  }}
                 >
                   <Plus size={24} color="#FFFFFF" />
                 </TouchableOpacity>
@@ -520,6 +615,146 @@ export default function RetailersScreen() {
         onFilterSelect={(filter) => setSelectedFilter(filter as FilterType)}
         onSortSelect={(sort) => setSelectedSort(sort as SortType)}
       />
+
+      {/* Add Retailer Modal */}
+      <Modal
+        visible={showAddModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => !isSaving && setShowAddModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Retailer</Text>
+              <TouchableOpacity
+                onPress={() => !isSaving && setShowAddModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <X size={22} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.fieldLabel}>Business Name *</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. City Auto Spares"
+                placeholderTextColor="#94a3b8"
+                value={newRetailer.Retailer_Name}
+                onChangeText={(text) => setNewRetailer(prev => ({ ...prev, Retailer_Name: text }))}
+              />
+
+              <Text style={styles.fieldLabel}>Contact Person</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. John Smith"
+                placeholderTextColor="#94a3b8"
+                value={newRetailer.Contact_Person}
+                onChangeText={(text) => setNewRetailer(prev => ({ ...prev, Contact_Person: text }))}
+              />
+
+              <Text style={styles.fieldLabel}>Mobile</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. 9876543210"
+                placeholderTextColor="#94a3b8"
+                keyboardType="phone-pad"
+                value={newRetailer.Retailer_Mobile}
+                onChangeText={(text) => setNewRetailer(prev => ({ ...prev, Retailer_Mobile: text }))}
+              />
+
+              <Text style={styles.fieldLabel}>Email</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. contact@shop.com"
+                placeholderTextColor="#94a3b8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={newRetailer.Retailer_Email}
+                onChangeText={(text) => setNewRetailer(prev => ({ ...prev, Retailer_Email: text }))}
+              />
+
+              <Text style={styles.fieldLabel}>Address</Text>
+              <TextInput
+                style={[styles.fieldInput, styles.fieldTextArea]}
+                placeholder="Street, city"
+                placeholderTextColor="#94a3b8"
+                multiline
+                value={newRetailer.Retailer_Address}
+                onChangeText={(text) => setNewRetailer(prev => ({ ...prev, Retailer_Address: text }))}
+              />
+
+              <Text style={styles.fieldLabel}>Area</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. Downtown"
+                placeholderTextColor="#94a3b8"
+                value={newRetailer.Area_Name}
+                onChangeText={(text) => setNewRetailer(prev => ({ ...prev, Area_Name: text }))}
+              />
+
+              <Text style={styles.fieldLabel}>Pincode</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. 400001"
+                placeholderTextColor="#94a3b8"
+                keyboardType="number-pad"
+                value={newRetailer.Pincode}
+                onChangeText={(text) => setNewRetailer(prev => ({ ...prev, Pincode: text }))}
+              />
+
+              <Text style={styles.fieldLabel}>GST Number</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. 27ABCDE1234F1Z5"
+                placeholderTextColor="#94a3b8"
+                autoCapitalize="characters"
+                value={newRetailer.GST_No}
+                onChangeText={(text) => setNewRetailer(prev => ({ ...prev, GST_No: text }))}
+              />
+
+              <Text style={styles.fieldLabel}>Credit Limit</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. 50000"
+                placeholderTextColor="#94a3b8"
+                keyboardType="numeric"
+                value={newRetailer.Credit_Limit}
+                onChangeText={(text) => setNewRetailer(prev => ({ ...prev, Credit_Limit: text }))}
+              />
+
+              {saveError && <Text style={styles.saveError}>{saveError}</Text>}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => !isSaving && setShowAddModal(false)}
+                disabled={isSaving}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+                onPress={handleAddRetailer}
+                disabled={isSaving}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isSaving ? 'Saving...' : 'Save Retailer'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -835,5 +1070,107 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1e293b',
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalScroll: {
+    flexGrow: 0,
+  },
+  modalScrollContent: {
+    padding: 20,
+    paddingBottom: 24,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  fieldInput: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  fieldTextArea: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  saveError: {
+    marginTop: 16,
+    fontSize: 14,
+    color: '#ef4444',
+    fontWeight: '500',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  saveButton: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#667eea',
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

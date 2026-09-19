@@ -114,7 +114,7 @@ export default function DashboardScreen() {
   const handleQuickAction = (actionId: string) => {
     switch (actionId) {
       case 'scan_barcode':
-        Alert.alert('Barcode Scanner', 'Opening barcode scanner...');
+        Alert.alert('Barcode Scanner', 'Barcode scanning is not available yet. You can find parts in the Parts Catalog instead.');
         break;
       case 'new_order':
         router.push('/(tabs)/orders/create');
@@ -123,7 +123,7 @@ export default function DashboardScreen() {
         router.push('/(tabs)/inventory');
         break;
       case 'photo_report':
-        Alert.alert('Photo Report', 'Opening camera for photo report...');
+        Alert.alert('Photo Report', 'Photo reports are not available yet.');
         break;
       case 'low_stock_alert':
         Alert.alert('Stock Alerts', `You have ${lowStockAlerts.length} low stock alerts`);
