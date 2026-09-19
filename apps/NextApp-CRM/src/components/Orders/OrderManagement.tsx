@@ -31,7 +31,7 @@ import { ordersAPI } from '../../services/api';
 export const OrderManagement: React.FC = () => {
   const { user, canAccessStore, getAccessibleStores, getAccessibleRetailers } = useAuth();
   const [orders, setOrders] = useState<OrderMaster[]>([]);
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [orderItemsMap, setOrderItemsMap] = useState<Record<number, OrderItem[]>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<string>('all');
@@ -40,6 +40,8 @@ export const OrderManagement: React.FC = () => {
   const [showNewOrderForm, setShowNewOrderForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
 
   // Load orders from API
   useEffect(() => {
@@ -48,7 +50,7 @@ export const OrderManagement: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const params: any = {};
+        const params: any = { page: currentPage, limit: 50 };
         
         // Add role-based filtering
         if (user?.role === 'retailer') {
@@ -56,13 +58,12 @@ export const OrderManagement: React.FC = () => {
         } else if (user?.role !== 'super_admin') {
           if (user?.store_id) {
             params.branch = user.store_id;
-          } else if (user?.company_id) {
-            // Company-level filtering will be handled by backend
           }
         }
 
         const response = await ordersAPI.getOrders(params);
         setOrders(response.data.orders || []);
+        setPagination(response.data.pagination || { page: 1, limit: 50, total: 0, pages: 0 });
       } catch (err) {
         console.error('Failed to load orders:', err);
         setError('Failed to load orders. Please try again.');
@@ -74,7 +75,7 @@ export const OrderManagement: React.FC = () => {
     if (user) {
       loadOrders();
     }
-  }, [user]);
+  }, [user, currentPage]);
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
@@ -111,7 +112,7 @@ export const OrderManagement: React.FC = () => {
       const orderWithItems = response.data;
       
       setSelectedOrder(orderWithItems);
-      setOrderItems(orderWithItems.items || []);
+      setOrderItemsMap(prev => ({ ...prev, [order.Order_Id]: orderWithItems.items || [] }));
       setShowOrderDetails(true);
     } catch (err) {
       console.error('Failed to load order details:', err);
@@ -127,8 +128,12 @@ export const OrderManagement: React.FC = () => {
       const response = await ordersAPI.createOrder(orderData);
       
       // Refresh orders list
-      const ordersResponse = await ordersAPI.getOrders();
+      const params: any = { page: currentPage, limit: 50 };
+      if (user?.role === 'retailer') params.retailer_id = user.retailer_id;
+      else if (user?.store_id) params.branch = user.store_id;
+      const ordersResponse = await ordersAPI.getOrders(params);
       setOrders(ordersResponse.data.orders || []);
+      setPagination(ordersResponse.data.pagination || { page: 1, limit: 50, total: 0, pages: 0 });
       
       setShowNewOrderForm(false);
       alert('Order created successfully!');
@@ -141,7 +146,7 @@ export const OrderManagement: React.FC = () => {
   };
 
   const getOrderItems = (orderId: number) => {
-    return orderItems.filter(item => item.Order_Id === orderId);
+    return orderItemsMap[orderId] || [];
   };
 
   const calculateOrderTotal = (orderId: number) => {
@@ -616,6 +621,30 @@ export const OrderManagement: React.FC = () => {
               />
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No orders found</h3>
               <p className="text-gray-600 dark:text-gray-400 mb-4">Try adjusting your search criteria or filters.</p>
+            </div>
+          )}
+
+          {pagination.pages > 1 && (
+            <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                Page {pagination.page} of {pagination.pages} ({pagination.total} total)
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={pagination.page <= 1}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(pagination.pages, prev + 1))}
+                  disabled={pagination.page >= pagination.pages}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>

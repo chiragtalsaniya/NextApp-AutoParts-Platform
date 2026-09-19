@@ -39,7 +39,20 @@ export interface OrderItem {
   dispatchQuantity?: number;
   unitPrice: number;
   discount?: number;
+  schemeDiscount?: number;
+  additionalDiscount?: number;
   amount: number;
+  urgent?: boolean;
+}
+
+export interface OrderStatusHistoryEntry {
+  id: number;
+  orderId: number;
+  fromStatus: OrderStatus;
+  toStatus: OrderStatus;
+  changedBy: string;
+  changedAt: number;
+  notes?: string;
 }
 
 export interface Order {
@@ -55,19 +68,24 @@ export interface Order {
   createdAt: string;
   updatedAt?: string;
   items: OrderItem[];
+  statusHistory?: OrderStatusHistoryEntry[];
 }
 
 export interface CreateOrderItemRequest {
-  partNumber: string;
+  part_number: string;
+  part_name?: string;
   quantity: number;
-  unitPrice: number;
-  discount?: number;
+  mrp: number;
+  basic_discount?: number;
+  scheme_discount?: number;
+  additional_discount?: number;
+  urgent?: boolean;
 }
 
 export interface CreateOrderRequest {
-  retailerId: number;
-  poNumber?: string;
-  poDate?: string;
+  retailer_id: number;
+  po_number?: string;
+  po_date?: string;
   urgent: boolean;
   remark?: string;
   items: CreateOrderItemRequest[];

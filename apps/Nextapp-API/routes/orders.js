@@ -1,7 +1,7 @@
 import express from 'express';
 import { executeQuery, executeTransaction, pool } from '../config/database.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
-import { validateRequest, orderCreateSchema } from '../middleware/validation.js';
+import { validateRequest, orderCreateSchema, orderStatusUpdateSchema } from '../middleware/validation.js';
 
 const orderStatusTransitions = {
   New: ['Pending', 'Processing', 'Hold', 'Cancelled'],
@@ -16,24 +16,64 @@ const orderStatusTransitions = {
 
 const router = express.Router();
 
+// Get order statistics (must be before /:id)
+router.get('/stats/summary', authenticateToken, async (req, res) => {
+  try {
+    let whereCondition = '';
+    let queryParams = [];
+
+    if (req.user.role === 'retailer') {
+      whereCondition = 'WHERE om.Retailer_Id = ?';
+      queryParams.push(req.user.retailer_id);
+    } else if (req.user.role !== 'super_admin') {
+      if (req.user.store_id) {
+        whereCondition = 'WHERE om.Branch = ?';
+        queryParams.push(req.user.store_id);
+      } else if (req.user.company_id) {
+        whereCondition = 'WHERE s.company_id = ?';
+        queryParams.push(req.user.company_id);
+      }
+    }
+
+    const statsQuery = `
+      SELECT
+        COUNT(*) as total_orders,
+        SUM(CASE WHEN om.Order_Status = 'New' THEN 1 ELSE 0 END) as new_orders,
+        SUM(CASE WHEN om.Order_Status = 'Processing' THEN 1 ELSE 0 END) as processing_orders,
+        SUM(CASE WHEN om.Order_Status = 'Completed' THEN 1 ELSE 0 END) as completed_orders,
+        SUM(CASE WHEN om.Urgent_Status = TRUE THEN 1 ELSE 0 END) as urgent_orders,
+        COUNT(DISTINCT om.Retailer_Id) as unique_retailers
+      FROM order_master om
+      LEFT JOIN stores s ON om.Branch = s.Branch_Code
+      ${whereCondition}
+    `;
+
+    const stats = await executeQuery(statsQuery, queryParams);
+
+    res.json(stats[0]);
+  } catch (error) {
+    console.error('Get order stats error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get orders with filtering and pagination
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 50, 
-      status, 
-      urgent, 
-      retailer_id, 
+    const {
+      page = 1,
+      limit = 50,
+      status,
+      urgent,
+      retailer_id,
       branch,
       start_date,
-      end_date 
+      end_date
     } = req.query;
 
     let whereConditions = [];
     let queryParams = [];
 
-    // Role-based filtering with conflict-safe branch filter
     let branchAlreadyFiltered = false;
 
     if (req.user.role === 'retailer') {
@@ -55,7 +95,6 @@ router.get('/', authenticateToken, async (req, res) => {
       queryParams.push(branch);
     }
 
-    // Additional filters
     if (status) {
       whereConditions.push('om.Order_Status = ?');
       queryParams.push(status);
@@ -63,7 +102,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     if (urgent !== undefined) {
       whereConditions.push('om.Urgent_Status = ?');
-      queryParams.push(urgent === 'true' ? 1 : 0); // Convert string to boolean for MySQL
+      queryParams.push(urgent === 'true' ? 1 : 0);
     }
 
     if (retailer_id) {
@@ -81,54 +120,48 @@ router.get('/', authenticateToken, async (req, res) => {
       queryParams.push(new Date(end_date).getTime());
     }
 
-    const whereClause = whereConditions.length > 0 ? 
+    const whereClause = whereConditions.length > 0 ?
       `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    // Get total count
     const countQuery = `
-      SELECT COUNT(*) as total 
-      FROM order_master om 
-      LEFT JOIN stores s ON om.Branch = s.Branch_Code 
+      SELECT COUNT(*) as total
+      FROM order_master om
+      LEFT JOIN stores s ON om.Branch = s.Branch_Code
       ${whereClause}
     `;
     const countResult = await executeQuery(countQuery, queryParams);
     const total = countResult[0].total;
 
-    const limitNum = parseInt(limit, 10);
-const pageNum = parseInt(page, 10);
-const offsetNum = (pageNum - 1) * limitNum;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+    const offsetNum = (pageNum - 1) * limitNum;
 
-// Safe and compatible: inline LIMIT/OFFSET into SQL (not as ? placeholders)
-const ordersQuery = `
-  SELECT 
-    om.*,
-    r.Retailer_Name,
-    r.Contact_Person,
-    s.Branch_Name,
-    s.Company_Name
-  FROM order_master om
-  LEFT JOIN retailers r ON om.Retailer_Id = r.Retailer_Id
-  LEFT JOIN stores s ON om.Branch = s.Branch_Code
-  ${whereClause}
-  ORDER BY om.Place_Date DESC
-  LIMIT ${limitNum} OFFSET ${offsetNum}
-`;
+    const ordersQuery = `
+      SELECT
+        om.*,
+        r.Retailer_Name,
+        r.Contact_Person,
+        s.Branch_Name,
+        s.Company_Name
+      FROM order_master om
+      LEFT JOIN retailers r ON om.Retailer_Id = r.Retailer_Id
+      LEFT JOIN stores s ON om.Branch = s.Branch_Code
+      ${whereClause}
+      ORDER BY om.Place_Date DESC
+      LIMIT ? OFFSET ?
+    `;
 
-const orders = await executeQuery(ordersQuery, queryParams); // Only for WHERE placeholders
+    const orders = await executeQuery(ordersQuery, [...queryParams, limitNum, offsetNum]);
 
-res.json({
-  orders,
-  pagination: {
-    page: pageNum,
-    limit: limitNum,
-    total,
-    pages: Math.ceil(total / limitNum)
-  }
-});
-
-  
-
-    
+    res.json({
+      orders,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum)
+      }
+    });
   } catch (error) {
     console.error('Get orders error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -140,15 +173,15 @@ router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const orderId = req.params.id;
 
-    // Get order details
     const orderQuery = `
-      SELECT 
+      SELECT
         om.*,
         r.Retailer_Name,
         r.Contact_Person,
         r.Retailer_Email,
         s.Branch_Name,
-        s.Company_Name
+        s.Company_Name,
+        s.company_id as store_company_id
       FROM order_master om
       LEFT JOIN retailers r ON om.Retailer_Id = r.Retailer_Id
       LEFT JOIN stores s ON om.Branch = s.Branch_Code
@@ -163,14 +196,18 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
     const order = orders[0];
 
-    // Check access permissions
+    // Role-based access check
     if (req.user.role === 'retailer' && order.Retailer_Id !== req.user.retailer_id) {
+      return res.status(403).json({ error: 'Access denied' });
+    } else if (req.user.role === 'admin' && order.store_company_id && order.store_company_id !== req.user.company_id) {
+      return res.status(403).json({ error: 'Access denied' });
+    } else if (['manager', 'storeman', 'salesman'].includes(req.user.role) && order.Branch !== req.user.store_id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
     // Get order items
     const itemsQuery = `
-      SELECT 
+      SELECT
         oi.*,
         p.Part_Name,
         p.Part_Image
@@ -193,19 +230,17 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Create new order
-router.post('/', 
-  authenticateToken, 
+router.post('/',
+  authenticateToken,
   authorizeRoles('admin', 'manager', 'storeman', 'salesman'),
   validateRequest(orderCreateSchema),
   async (req, res) => {
     try {
       const { retailer_id, po_number, urgent, remark, items } = req.body;
 
-      // Generate CRM Order ID
       const year = new Date().getFullYear();
       const crmOrderId = `CRM-${year}-${Date.now().toString().slice(-6)}`;
 
-      // Prepare order master data
       const placeDate = Date.now();
       const orderMasterQuery = `
         INSERT INTO order_master (
@@ -223,15 +258,14 @@ router.post('/',
         remark || null,
         po_number || null,
         po_number ? placeDate : null,
-        urgent ? 1 : 0, // Convert boolean to 0/1 for MySQL
-        0, // IsSync
+        urgent ? 1 : 0,
+        0,
         placeDate
       ];
 
-      // Prepare order items data
       const orderItemQueries = items.map((item, index) => {
         const itemAmount = Math.round(
-          item.mrp * item.quantity * 
+          item.mrp * item.quantity *
           (1 - (item.basic_discount + item.scheme_discount + item.additional_discount) / 100)
         );
 
@@ -245,7 +279,7 @@ router.post('/',
             ) VALUES (?, ?, ?, ?, ?, 0, 'New', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           params: [
-            null, // Will be set after order creation
+            null,
             index + 1,
             item.part_number,
             item.part_name || item.part_number,
@@ -258,32 +292,28 @@ router.post('/',
             item.basic_discount || 0,
             item.mrp,
             placeDate,
-            item.urgent ? 1 : 0, // Convert boolean to 0/1 for MySQL
+            item.urgent ? 1 : 0,
             placeDate
           ]
         };
       });
 
-      // Execute transaction
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
 
-        // Insert order master
         const [orderResult] = await connection.execute(orderMasterQuery, orderMasterParams);
         const orderId = orderResult.insertId;
 
-        // Insert order items
         for (const itemQuery of orderItemQueries) {
-          itemQuery.params[0] = orderId; // Set Order_Id
+          itemQuery.params[0] = orderId;
           await connection.execute(itemQuery.query, itemQuery.params);
         }
 
         await connection.commit();
 
-        // Get the created order with details
         const createdOrder = await executeQuery(`
-          SELECT 
+          SELECT
             om.*,
             r.Retailer_Name,
             r.Contact_Person
@@ -312,9 +342,10 @@ router.post('/',
 );
 
 // Update order status
-router.patch('/:id/status', 
+router.patch('/:id/status',
   authenticateToken,
   authorizeRoles('admin', 'manager', 'storeman'),
+  validateRequest(orderStatusUpdateSchema),
   async (req, res) => {
     try {
       const orderId = req.params.id;
@@ -329,11 +360,22 @@ router.patch('/:id/status',
         return res.status(404).json({ error: 'Order not found' });
       }
 
-      const currentStatus = currentOrders[0].Order_Status;
-      const validStatuses = Object.keys(orderStatusTransitions);
-      
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ error: 'Invalid status' });
+      const currentOrder = currentOrders[0];
+      const currentStatus = currentOrder.Order_Status;
+
+      // Authorization check: non-super_admin users can only update orders in their scope
+      if (req.user.role !== 'super_admin') {
+        if (req.user.role === 'admin' && req.user.company_id) {
+          const storeCheck = await executeQuery(
+            'SELECT company_id FROM stores WHERE Branch_Code = ?',
+            [currentOrder.Branch]
+          );
+          if (storeCheck.length > 0 && storeCheck[0].company_id !== req.user.company_id) {
+            return res.status(403).json({ error: 'Access denied' });
+          }
+        } else if (['manager', 'storeman'].includes(req.user.role) && currentOrder.Branch !== req.user.store_id) {
+          return res.status(403).json({ error: 'Access denied' });
+        }
       }
 
       if (!orderStatusTransitions[currentStatus]?.includes(status)) {
@@ -344,11 +386,9 @@ router.patch('/:id/status',
         });
       }
 
-      // Update order status
       const updateFields = ['Order_Status = ?'];
       const updateParams = [status];
 
-      // Add status-specific fields
       const currentTime = Date.now();
       const userName = req.user.name;
 
@@ -376,15 +416,15 @@ router.patch('/:id/status',
         updateParams.push(notes);
       }
 
+      updateFields.push('Last_Sync = ?');
+      updateParams.push(currentTime);
       updateParams.push(orderId);
 
       const updateQuery = `
-        UPDATE order_master 
-        SET ${updateFields.join(', ')}, Last_Sync = ?
+        UPDATE order_master
+        SET ${updateFields.join(', ')}
         WHERE Order_Id = ?
       `;
-
-      updateParams.splice(-1, 0, currentTime); // Add Last_Sync before Order_Id
 
       await executeQuery(updateQuery, updateParams);
 
@@ -396,47 +436,5 @@ router.patch('/:id/status',
     }
   }
 );
-
-// Get order statistics
-router.get('/stats/summary', authenticateToken, async (req, res) => {
-  try {
-    let whereCondition = '';
-    let queryParams = [];
-
-    // Role-based filtering
-    if (req.user.role === 'retailer') {
-      whereCondition = 'WHERE om.Retailer_Id = ?';
-      queryParams.push(req.user.retailer_id);
-    } else if (req.user.role !== 'super_admin') {
-      if (req.user.store_id) {
-        whereCondition = 'WHERE om.Branch = ?';
-        queryParams.push(req.user.store_id);
-      } else if (req.user.company_id) {
-        whereCondition = 'WHERE s.company_id = ?';
-        queryParams.push(req.user.company_id);
-      }
-    }
-
-    const statsQuery = `
-      SELECT 
-        COUNT(*) as total_orders,
-        SUM(CASE WHEN om.Order_Status = 'New' THEN 1 ELSE 0 END) as new_orders,
-        SUM(CASE WHEN om.Order_Status = 'Processing' THEN 1 ELSE 0 END) as processing_orders,
-        SUM(CASE WHEN om.Order_Status = 'Completed' THEN 1 ELSE 0 END) as completed_orders,
-        SUM(CASE WHEN om.Urgent_Status = TRUE THEN 1 ELSE 0 END) as urgent_orders,
-        COUNT(DISTINCT om.Retailer_Id) as unique_retailers
-      FROM order_master om
-      LEFT JOIN stores s ON om.Branch = s.Branch_Code
-      ${whereCondition}
-    `;
-
-    const stats = await executeQuery(statsQuery, queryParams);
-
-    res.json(stats[0]);
-  } catch (error) {
-    console.error('Get order stats error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 export default router;

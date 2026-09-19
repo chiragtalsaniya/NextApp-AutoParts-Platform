@@ -180,6 +180,11 @@ export const partUpdateSchema = Joi.object({
   Part_Image: Joi.string().uri().allow('', null)
 }).min(1);
 
+export const orderStatusUpdateSchema = Joi.object({
+  status: Joi.string().valid('New', 'Pending', 'Processing', 'Hold', 'Picked', 'Dispatched', 'Completed', 'Cancelled').required(),
+  notes: Joi.string().max(1000).allow('', null)
+});
+
 // Order validation schemas
 export const orderCreateSchema = Joi.object({
   retailer_id: Joi.number().required(),
@@ -191,12 +196,12 @@ export const orderCreateSchema = Joi.object({
     Joi.object({
       part_number: Joi.string().required(),
       part_name: Joi.string().max(100).optional(), // allow but not required
-      quantity: Joi.number().min(1).required(),
+      quantity: Joi.number().min(1).max(9999).required(),
       mrp: Joi.number().min(0).required(),
       basic_discount: Joi.number().min(0).max(100),
       scheme_discount: Joi.number().min(0).max(100),
       additional_discount: Joi.number().min(0).max(100),
       urgent: Joi.boolean()
     })
-  ).min(1).required()
+  ).min(1).max(200).required()
 });

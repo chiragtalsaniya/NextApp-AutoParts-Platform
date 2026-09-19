@@ -51,7 +51,7 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
         const res = await retailersAPI.getRetailers({ limit: 100 });
         setRetailers(res.data?.retailers || []);
       } catch (err) {
-        // Silently fail - the form will show empty retailer list
+        setRetailerError('Failed to load retailers. Please try again or contact support.');
       }
     };
     loadRetailers();
@@ -90,6 +90,15 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
         }
         if (!item.mrp || item.mrp <= 0) {
           errors.general = `Item ${index + 1}: MRP must be greater than 0`;
+          return true;
+        }
+        const totalDiscount = (item.basic_discount || 0) + (item.scheme_discount || 0) + (item.additional_discount || 0);
+        if (totalDiscount > 100) {
+          errors.general = `Item ${index + 1}: Total discount cannot exceed 100% (currently ${totalDiscount}%)`;
+          return true;
+        }
+        if (item.basic_discount < 0 || item.scheme_discount < 0 || item.additional_discount < 0) {
+          errors.general = `Item ${index + 1}: Discount values cannot be negative`;
           return true;
         }
         return false;
@@ -336,6 +345,12 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
                     </p>
                     <p className="text-sm text-blue-700">{selectedRetailer.Retailer_Email}</p>
                   </div>
+                )}
+                {retailerError && (
+                  <p className="mt-1 text-sm text-red-600">{retailerError}</p>
+                )}
+                {retailers.length === 0 && !retailerError && (
+                  <p className="mt-1 text-sm text-gray-500">No retailers available.</p>
                 )}
               </div>
 

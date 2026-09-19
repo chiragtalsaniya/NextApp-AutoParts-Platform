@@ -244,21 +244,8 @@ export default function OrderDetailsScreen() {
       const orderId = order.id || order.Order_Id;
       await apiService.updateOrderStatus(orderId, newStatus, statusNotes);
       
-      // Update local state
-      setOrder(prev => prev ? { 
-        ...prev, 
-        status: newStatus,
-        Order_Status: newStatus,
-        statusHistory: [
-          ...(prev.statusHistory || []),
-          {
-            status: newStatus,
-            timestamp: new Date().toISOString(),
-            updatedBy: user?.name || 'User',
-            notes: statusNotes || `Status updated to ${newStatus}`,
-          }
-        ]
-      } : null);
+      // Reload order from API to get server-side data
+      loadOrder();
       
       setShowStatusModal(false);
       setNewStatus('');
@@ -426,8 +413,7 @@ export default function OrderDetailsScreen() {
 
   const statusInfo = getStatusInfo(order.status || order.Order_Status);
   const subtotal = calculateOrderSubtotal();
-  const tax = subtotal * 0.08; // 8% tax
-  const total = subtotal + tax;
+  const total = subtotal;
   const orderNumber = order.orderNumber || order.CRMOrderId;
   const retailerName = order.retailer?.businessName || order.Retailer_Name;
   const contactPerson = order.retailer?.contactName || order.Contact_Person;
@@ -643,10 +629,6 @@ export default function OrderDetailsScreen() {
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Subtotal:</Text>
               <Text style={styles.totalValue}>{formatCurrency(subtotal)}</Text>
-            </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Tax (8%):</Text>
-              <Text style={styles.totalValue}>{formatCurrency(tax)}</Text>
             </View>
             <View style={[styles.totalRow, styles.grandTotalRow]}>
               <Text style={styles.grandTotalLabel}>Total:</Text>

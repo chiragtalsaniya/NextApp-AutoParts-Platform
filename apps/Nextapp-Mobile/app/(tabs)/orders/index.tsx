@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { apiService } from '@/services/api';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorMessage } from '@/components/ErrorMessage';
@@ -50,6 +50,12 @@ export default function OrdersScreen() {
     loadOrders();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders();
+    }, [])
+  );
+
   useEffect(() => {
     applyFiltersAndSort();
   }, [orders, searchQuery, selectedFilter, selectedSort]);
@@ -59,8 +65,6 @@ export default function OrdersScreen() {
       setError(null);
       const response = await apiService.getOrders({ limit: 100 });
       const orderData = response.data || response.orders || [];
-      
-      console.log('📦 Loaded orders:', orderData);
       setOrders(orderData);
     } catch (error: any) {
       setError(error.error || 'Failed to load orders');
@@ -394,9 +398,9 @@ export default function OrdersScreen() {
             </View>
             
             <View style={styles.orderAmount}>
-              <Text style={styles.amountText}>{formatCurrency(item.totalAmount || 0)}</Text>
+              <Text style={styles.amountText}>{formatCurrency(item.totalAmount || item.ItemAmount || 0)}</Text>
               <Text style={styles.itemCount}>
-                {Math.floor(Math.random() * 10) + 1} item{Math.floor(Math.random() * 10) + 1 !== 1 ? 's' : ''}
+                {(item.itemCount || item.items?.length || 0)} item{(item.itemCount || item.items?.length || 0) !== 1 ? 's' : ''}
               </Text>
             </View>
           </View>

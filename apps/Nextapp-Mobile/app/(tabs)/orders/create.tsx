@@ -137,7 +137,7 @@ export default function CreateOrderScreen() {
             name: item.part.Part_Name,
             category: item.part.Part_Catagory,
             unitPrice: item.part.Part_Price,
-            currentStock: Math.floor(Math.random() * 100) + 10,
+            currentStock: (item.part.T1 || 0) + (item.part.T2 || 0) + (item.part.T3 || 0) + (item.part.T4 || 0) + (item.part.T5 || 0),
             image: item.part.Part_Image,
             Part_Number: item.part.Part_Number,
             Part_Name: item.part.Part_Name,
@@ -192,8 +192,6 @@ export default function CreateOrderScreen() {
         storesData = response.stores || response.data || [];
       }
       
-      console.log('🏪 Loaded stores:', storesData);
-      
       // Map the API response to our Store interface
       const mappedStores = storesData.map((store: any) => ({
         branchCode: store.Branch_Code,
@@ -212,15 +210,6 @@ export default function CreateOrderScreen() {
       setStores(mappedStores);
     } catch (error: any) {
       setError(error.error || 'Failed to load stores');
-      console.error('Failed to load stores:', error);
-      
-      // Fallback to mock stores if API fails
-      const mockStores = [
-        { branchCode: '2081380', name: 'Surat', address: 'Opp. Sanjivani Hospital, NH8, Kadodara, Surat, Gujarat' },
-        { branchCode: '2081381', name: 'Vapi', address: '6,7 GF-Wala Chambers, Nr. Swaminarayan School, NH8, salvav, vapi-396195, Gujarat' },
-        { branchCode: '2081382', name: 'Baroda', address: 'Opp. L&T Ltd, NH8, Ranoli-Padamla Highway, Padamla, Vadodara-391350, Gujarat' },
-      ];
-      setStores(mockStores);
     } finally {
       setIsLoading(false);
     }
@@ -253,7 +242,7 @@ export default function CreateOrderScreen() {
         name: part.Part_Name,
         category: part.Part_Catagory,
         unitPrice: part.Part_Price,
-        currentStock: Math.floor(Math.random() * 100) + 10,
+        currentStock: (part.T1 || 0) + (part.T2 || 0) + (part.T3 || 0) + (part.T4 || 0) + (part.T5 || 0),
         image: part.Part_Image,
         Part_Number: part.Part_Number,
         Part_Name: part.Part_Name,
@@ -436,7 +425,7 @@ export default function CreateOrderScreen() {
 
         <FlatList
           data={filteredStores}
-          keyExtractor={(item) => item.branchCode || item.Branch_Code || Math.random().toString()}
+          keyExtractor={(item) => item.branchCode || item.Branch_Code || ''}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInUp.delay(index * 100).duration(600)}>
               <TouchableOpacity
@@ -560,9 +549,9 @@ export default function CreateOrderScreen() {
   };
 
   const getPartStockStatus = (part: Part) => {
-    const mockCurrentStock = part.currentStock || Math.floor(Math.random() * 30) + 1;
+    const currentStock = part.currentStock || 0;
     const minQty = 5;
-    const isLowStock = mockCurrentStock <= minQty;
+    const isLowStock = currentStock <= minQty;
     return {
       currentStock: mockCurrentStock,
       isLowStock,
@@ -675,7 +664,7 @@ export default function CreateOrderScreen() {
 
         <FlatList
           data={filteredParts}
-          keyExtractor={(item) => item.partNumber || item.Part_Number || Math.random().toString()}
+          keyExtractor={(item) => item.partNumber || item.Part_Number || ''}
           renderItem={({ item, index }) => {
             const partNumber = item.partNumber || item.Part_Number || '';
             const orderItem = orderItems.find(oi => 
@@ -713,7 +702,7 @@ export default function CreateOrderScreen() {
                         </View>
                       </View>
                       
-                      <Text style={styles.partStock}>{Math.floor(Math.random() * 100) + 10} in stock</Text>
+                      <Text style={styles.partStock}>{item.currentStock || 0} in stock</Text>
                     </View>
                     
                     <View style={styles.partPrice}>
@@ -1037,7 +1026,25 @@ export default function CreateOrderScreen() {
   }
 
   if (error) {
-    return <ErrorMessage error={error} onRetry={() => window.location.reload()} />;
+    return <ErrorMessage error={error} onRetry={() => { setError(null); loadStores(); }} />;
+  }
+
+  const canCreateOrder = ['admin', 'manager', 'salesman', 'storeman'].includes(user?.role || '');
+
+  if (!canCreateOrder) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <AlertTriangle size={48} color="#94a3b8" />
+          <Text style={{ fontSize: 18, fontWeight: '600', color: '#1e293b', marginTop: 16 }}>
+            Access Restricted
+          </Text>
+          <Text style={{ fontSize: 14, color: '#64748b', marginTop: 8, textAlign: 'center' }}>
+            You do not have permission to create orders.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
