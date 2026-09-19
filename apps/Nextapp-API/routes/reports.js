@@ -4,20 +4,56 @@ import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 
 const router = express.Router();
 
+const parseDateRange = (start_date, end_date) => {
+  const result = { error: null, start: null, end: null };
+
+  if (start_date) {
+    const d = new Date(start_date);
+    if (isNaN(d.getTime())) {
+      result.error = 'Invalid start_date. Use YYYY-MM-DD format.';
+      return result;
+    }
+    result.start = d.getTime();
+  }
+
+  if (end_date) {
+    const d = new Date(end_date);
+    if (isNaN(d.getTime())) {
+      result.error = 'Invalid end_date. Use YYYY-MM-DD format.';
+      return result;
+    }
+    // Include the entire end day (until 23:59:59.999)
+    result.end = d.getTime() + (24 * 60 * 60 * 1000) - 1;
+  }
+
+  return result;
+};
+
+const paginationParams = (req) => {
+  const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limitNum = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 100));
+  return { page: pageNum, limit: limitNum, offset: (pageNum - 1) * limitNum };
+};
+
 // Get order report
-router.get('/orders', 
+router.get('/orders',
   authenticateToken,
   authorizeRoles('super_admin', 'admin', 'manager'),
   async (req, res) => {
     try {
-      const { 
-        start_date, 
-        end_date, 
-        status, 
+      const {
+        start_date,
+        end_date,
+        status,
         retailer_id,
         store_id,
         company_id
       } = req.query;
+
+      const dateRange = parseDateRange(start_date, end_date);
+      if (dateRange.error) {
+        return res.status(400).json({ error: dateRange.error });
+      }
 
       let whereConditions = [];
       let queryParams = [];
@@ -34,14 +70,14 @@ router.get('/orders',
       }
 
       // Date range filtering
-      if (start_date) {
+      if (dateRange.start !== null) {
         whereConditions.push('om.Place_Date >= ?');
-        queryParams.push(new Date(start_date).getTime());
+        queryParams.push(dateRange.start);
       }
 
-      if (end_date) {
+      if (dateRange.end !== null) {
         whereConditions.push('om.Place_Date <= ?');
-        queryParams.push(new Date(end_date).getTime());
+        queryParams.push(dateRange.end);
       }
 
       // Additional filters
@@ -65,12 +101,23 @@ router.get('/orders',
         queryParams.push(company_id);
       }
 
-      const whereClause = whereConditions.length > 0 ? 
+      const whereClause = whereConditions.length > 0 ?
         `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      const { page, limit, offset } = paginationParams(req);
+
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM order_master om
+        LEFT JOIN stores s ON om.Branch = s.Branch_Code
+        ${whereClause}
+      `;
+      const countResult = await executeQuery(countQuery, queryParams);
+      const total = countResult[0].total;
 
       // Get orders
       const ordersQuery = `
-        SELECT 
+        SELECT
           om.*,
           r.Retailer_Name,
           r.Contact_Person,
@@ -83,49 +130,71 @@ router.get('/orders',
         LEFT JOIN companies c ON s.company_id = c.id
         ${whereClause}
         ORDER BY om.Place_Date DESC
+        LIMIT ? OFFSET ?
       `;
 
-      const orders = await executeQuery(ordersQuery, queryParams);
+      const orders = await executeQuery(ordersQuery, [...queryParams, limit, offset]);
 
       // Get order items for these orders
       const orderIds = orders.map(order => order.Order_Id);
-      
+
       let orderItems = [];
       if (orderIds.length > 0) {
         const placeholders = orderIds.map(() => '?').join(',');
         const itemsQuery = `
-          SELECT 
-            oi.*,
-            p.Part_Name,
-            p.Part_Image
+          SELECT
+            oi.Order_Id,
+            oi.Order_Item_Id,
+            oi.Order_Srl,
+            oi.Part_Admin,
+            oi.Part_Salesman,
+            oi.Order_Qty,
+            oi.Dispatch_Qty,
+            oi.ItemAmount,
+            oi.SchemeDisc,
+            oi.AdditionalDisc,
+            oi.Discount,
+            oi.MRP,
+            oi.Urgent_Status,
+            p.Part_Name
           FROM order_items oi
           LEFT JOIN parts p ON oi.Part_Admin = p.Part_Number
           WHERE oi.Order_Id IN (${placeholders})
           ORDER BY oi.Order_Id, oi.Order_Srl
         `;
-        
+
         orderItems = await executeQuery(itemsQuery, orderIds);
       }
 
-      // Calculate statistics
-      const totalOrders = orders.length;
-      
-      let totalRevenue = 0;
-      const statusCounts = {};
-      
-      orders.forEach(order => {
-        // Count by status
-        statusCounts[order.Order_Status] = (statusCounts[order.Order_Status] || 0) + 1;
-        
-        // Sum items for this order
-        const orderTotal = orderItems
-          .filter(item => item.Order_Id === order.Order_Id)
-          .reduce((sum, item) => sum + (item.ItemAmount || 0), 0);
-        
-        totalRevenue += orderTotal;
-      });
-      
+      // Calculate statistics over the filtered set (all pages)
+      const statsQuery = `
+        SELECT
+          COUNT(*) as totalOrders,
+          COALESCE(SUM(order_totals.order_total), 0) as totalRevenue
+        FROM (
+          SELECT om.Order_Id, SUM(oi.ItemAmount) as order_total
+          FROM order_master om
+          JOIN order_items oi ON om.Order_Id = oi.Order_Id
+          LEFT JOIN stores s ON om.Branch = s.Branch_Code
+          ${whereClause}
+          GROUP BY om.Order_Id
+        ) as order_totals
+      `;
+      const statsResult = await executeQuery(statsQuery, queryParams);
+      const totalRevenue = Number(statsResult[0].totalRevenue) || 0;
+      const totalOrders = Number(statsResult[0].totalOrders) || 0;
       const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+      const statusQuery = `
+        SELECT om.Order_Status, COUNT(*) as count
+        FROM order_master om
+        LEFT JOIN stores s ON om.Branch = s.Branch_Code
+        ${whereClause}
+        GROUP BY om.Order_Status
+      `;
+      const statusRows = await executeQuery(statusQuery, queryParams);
+      const statusCounts = {};
+      statusRows.forEach(row => { statusCounts[row.Order_Status] = row.count; });
 
       res.json({
         orders,
@@ -135,6 +204,12 @@ router.get('/orders',
           totalRevenue,
           avgOrderValue,
           statusCounts
+        },
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
         }
       });
     } catch (error) {
@@ -145,12 +220,12 @@ router.get('/orders',
 );
 
 // Get inventory report
-router.get('/inventory', 
+router.get('/inventory',
   authenticateToken,
   authorizeRoles('super_admin', 'admin', 'manager', 'storeman'),
   async (req, res) => {
     try {
-      const { 
+      const {
         store_id,
         category,
         focus_group,
@@ -191,12 +266,24 @@ router.get('/inventory',
         whereConditions.push('(CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)) < CAST(ist.Part_Max AS UNSIGNED) * 0.2');
       }
 
-      const whereClause = whereConditions.length > 0 ? 
+      const whereClause = whereConditions.length > 0 ?
         `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      const { page, limit, offset } = paginationParams(req);
+
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM item_status ist
+        LEFT JOIN stores s ON ist.Branch_Code = s.Branch_Code
+        LEFT JOIN parts p ON ist.Part_No = p.Part_Number
+        ${whereClause}
+      `;
+      const countResult = await executeQuery(countQuery, queryParams);
+      const total = countResult[0].total;
 
       // Get inventory data
       const inventoryQuery = `
-        SELECT 
+        SELECT
           ist.*,
           s.Branch_Name,
           s.Company_Name,
@@ -205,7 +292,6 @@ router.get('/inventory',
           p.Part_MinQty,
           p.Part_Catagory,
           p.Focus_Group,
-          p.Part_Image,
           (CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)) as total_stock,
           CAST(ist.Part_Max AS UNSIGNED) as max_stock,
           c.name as company_name
@@ -215,36 +301,36 @@ router.get('/inventory',
         LEFT JOIN companies c ON s.company_id = c.id
         ${whereClause}
         ORDER BY ist.Branch_Code, ist.Part_No
+        LIMIT ? OFFSET ?
       `;
 
-      const inventory = await executeQuery(inventoryQuery, queryParams);
+      const inventory = await executeQuery(inventoryQuery, [...queryParams, limit, offset]);
 
-      // Calculate statistics
-      const totalItems = inventory.length;
-      
-      let totalStock = 0;
-      let criticalStock = 0;
-      let lowStock = 0;
-      let goodStock = 0;
-      
+      // Calculate statistics over the full filtered set
+      const statsQuery = `
+        SELECT
+          COUNT(*) as totalItems,
+          COALESCE(SUM(CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)), 0) as totalStock,
+          SUM(CASE WHEN (CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)) < CAST(ist.Part_Max AS UNSIGNED) * 0.2 THEN 1 ELSE 0 END) as criticalStock,
+          SUM(CASE WHEN (CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)) >= CAST(ist.Part_Max AS UNSIGNED) * 0.2
+                AND (CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)) < CAST(ist.Part_Max AS UNSIGNED) * 0.4 THEN 1 ELSE 0 END) as lowStock,
+          SUM(CASE WHEN (CAST(ist.Part_A AS UNSIGNED) + CAST(ist.Part_B AS UNSIGNED) + CAST(ist.Part_C AS UNSIGNED)) >= CAST(ist.Part_Max AS UNSIGNED) * 0.4 THEN 1 ELSE 0 END) as goodStock
+        FROM item_status ist
+        LEFT JOIN stores s ON ist.Branch_Code = s.Branch_Code
+        LEFT JOIN parts p ON ist.Part_No = p.Part_Number
+        ${whereClause}
+      `;
+      const statsResult = await executeQuery(statsQuery, queryParams);
+      const s = statsResult[0] || {};
+
+      // Add stock level indicators to the returned page
       inventory.forEach(item => {
         const totalItemStock = item.total_stock || 0;
         const maxItemStock = item.max_stock || 0;
         const stockPercentage = maxItemStock > 0 ? (totalItemStock / maxItemStock) * 100 : 0;
-        
-        totalStock += totalItemStock;
-        
-        if (stockPercentage < 20) {
-          criticalStock++;
-        } else if (stockPercentage < 40) {
-          lowStock++;
-        } else {
-          goodStock++;
-        }
-        
-        // Add stock level indicator
+
         item.stock_percentage = Math.round(stockPercentage);
-        
+
         if (stockPercentage < 20) {
           item.stock_level = 'critical';
         } else if (stockPercentage < 40) {
@@ -259,11 +345,17 @@ router.get('/inventory',
       res.json({
         inventory,
         stats: {
-          totalItems,
-          totalStock,
-          criticalStock,
-          lowStock,
-          goodStock
+          totalItems: Number(s.totalItems) || 0,
+          totalStock: Number(s.totalStock) || 0,
+          criticalStock: Number(s.criticalStock) || 0,
+          lowStock: Number(s.lowStock) || 0,
+          goodStock: Number(s.goodStock) || 0
+        },
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
         }
       });
     } catch (error) {
@@ -274,17 +366,22 @@ router.get('/inventory',
 );
 
 // Get sales report
-router.get('/sales', 
+router.get('/sales',
   authenticateToken,
   authorizeRoles('super_admin', 'admin', 'manager'),
   async (req, res) => {
     try {
-      const { 
-        start_date, 
-        end_date, 
+      const {
+        start_date,
+        end_date,
         store_id,
         company_id
       } = req.query;
+
+      const dateRange = parseDateRange(start_date, end_date);
+      if (dateRange.error) {
+        return res.status(400).json({ error: dateRange.error });
+      }
 
       let whereConditions = [];
       let queryParams = [];
@@ -301,14 +398,14 @@ router.get('/sales',
       }
 
       // Date range filtering
-      if (start_date) {
+      if (dateRange.start !== null) {
         whereConditions.push('om.Place_Date >= ?');
-        queryParams.push(new Date(start_date).getTime());
+        queryParams.push(dateRange.start);
       }
 
-      if (end_date) {
+      if (dateRange.end !== null) {
         whereConditions.push('om.Place_Date <= ?');
-        queryParams.push(new Date(end_date).getTime());
+        queryParams.push(dateRange.end);
       }
 
       // Additional filters
@@ -325,12 +422,24 @@ router.get('/sales',
       // Only include completed orders
       whereConditions.push("om.Order_Status IN ('Completed', 'Delivered')");
 
-      const whereClause = whereConditions.length > 0 ? 
+      const whereClause = whereConditions.length > 0 ?
         `WHERE ${whereConditions.join(' AND ')}` : '';
 
-      // Get sales data
+      // Get sales data (paginate)
+      const { page, limit, offset } = paginationParams(req);
+
+      const countQuery = `
+        SELECT COUNT(DISTINCT om.Order_Id) as total
+        FROM order_master om
+        JOIN order_items oi ON om.Order_Id = oi.Order_Id
+        LEFT JOIN stores s ON om.Branch = s.Branch_Code
+        ${whereClause}
+      `;
+      const countResult = await executeQuery(countQuery, queryParams);
+      const total = countResult[0].total;
+
       const salesQuery = `
-        SELECT 
+        SELECT
           om.Order_Id,
           om.CRMOrderId,
           om.Place_Date,
@@ -347,15 +456,17 @@ router.get('/sales',
         LEFT JOIN retailers r ON om.Retailer_Id = r.Retailer_Id
         LEFT JOIN stores s ON om.Branch = s.Branch_Code
         ${whereClause}
-        GROUP BY om.Order_Id
+        GROUP BY om.Order_Id, om.CRMOrderId, om.Place_Date, om.Delivered_Date, om.Branch,
+                 s.Branch_Name, s.Company_Name, r.Retailer_Name, r.Contact_Person
         ORDER BY om.Place_Date DESC
+        LIMIT ? OFFSET ?
       `;
 
-      const sales = await executeQuery(salesQuery, queryParams);
+      const sales = await executeQuery(salesQuery, [...queryParams, limit, offset]);
 
       // Get sales by store
       const storeQuery = `
-        SELECT 
+        SELECT
           s.Branch_Code,
           s.Branch_Name,
           s.Company_Name,
@@ -365,7 +476,7 @@ router.get('/sales',
         JOIN order_items oi ON om.Order_Id = oi.Order_Id
         JOIN stores s ON om.Branch = s.Branch_Code
         ${whereClause}
-        GROUP BY s.Branch_Code
+        GROUP BY s.Branch_Code, s.Branch_Name, s.Company_Name
         ORDER BY total_amount DESC
       `;
 
@@ -373,7 +484,7 @@ router.get('/sales',
 
       // Get sales by part category
       const categoryQuery = `
-        SELECT 
+        SELECT
           p.Part_Catagory,
           COUNT(oi.Order_Item_Id) as item_count,
           SUM(oi.ItemAmount) as total_amount
@@ -389,8 +500,18 @@ router.get('/sales',
       const salesByCategory = await executeQuery(categoryQuery, queryParams);
 
       // Calculate statistics
-      const totalSales = sales.reduce((sum, sale) => sum + (sale.total_amount || 0), 0);
-      const totalOrders = sales.length;
+      const totalsQuery = `
+        SELECT
+          COUNT(DISTINCT om.Order_Id) as totalOrders,
+          COALESCE(SUM(oi.ItemAmount), 0) as totalSales
+        FROM order_master om
+        JOIN order_items oi ON om.Order_Id = oi.Order_Id
+        LEFT JOIN stores s ON om.Branch = s.Branch_Code
+        ${whereClause}
+      `;
+      const totalsResult = await executeQuery(totalsQuery, queryParams);
+      const totalSales = Number(totalsResult[0].totalSales) || 0;
+      const totalOrders = Number(totalsResult[0].totalOrders) || 0;
       const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
       res.json({
@@ -401,6 +522,12 @@ router.get('/sales',
           totalSales,
           totalOrders,
           avgOrderValue
+        },
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
         }
       });
     } catch (error) {
@@ -411,17 +538,22 @@ router.get('/sales',
 );
 
 // Get retailer report
-router.get('/retailers', 
+router.get('/retailers',
   authenticateToken,
   authorizeRoles('super_admin', 'admin', 'manager'),
   async (req, res) => {
     try {
-      const { 
-        start_date, 
-        end_date, 
+      const {
+        start_date,
+        end_date,
         area_id,
         active_only
       } = req.query;
+
+      const dateRange = parseDateRange(start_date, end_date);
+      if (dateRange.error) {
+        return res.status(400).json({ error: dateRange.error });
+      }
 
       let whereConditions = [];
       let queryParams = [];
@@ -448,46 +580,58 @@ router.get('/retailers',
         whereConditions.push('r.Retailer_Status = 1');
       }
 
-      const whereClause = whereConditions.length > 0 ? 
+      const whereClause = whereConditions.length > 0 ?
         `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      // Date range applied on the LEFT JOIN itself so retailers without orders
+      // in the window are still listed (with NULL totals), and the filters are
+      // parameterized instead of string-interpolated. Note: join params precede
+      // where params in the SQL text, so they must be ordered accordingly.
+      const joinParams = [];
+      let orderJoinCondition = 'ON r.Retailer_Id = om.Retailer_Id';
+      if (dateRange.start !== null) {
+        orderJoinCondition += ' AND (om.Place_Date IS NULL OR om.Place_Date >= ?)';
+        joinParams.push(dateRange.start);
+      }
+      if (dateRange.end !== null) {
+        orderJoinCondition += ' AND (om.Place_Date IS NULL OR om.Place_Date <= ?)';
+        joinParams.push(dateRange.end);
+      }
+      const allParams = [...joinParams, ...queryParams];
 
       // Get retailers
       const retailersQuery = `
-        SELECT 
+        SELECT
           r.*,
           COUNT(DISTINCT om.Order_Id) as order_count,
           SUM(oi.ItemAmount) as total_spent
         FROM retailers r
-        LEFT JOIN order_master om ON r.Retailer_Id = om.Retailer_Id
+        LEFT JOIN order_master om ${orderJoinCondition}
         LEFT JOIN order_items oi ON om.Order_Id = oi.Order_Id
         ${whereClause}
-        ${start_date ? `AND (om.Place_Date IS NULL OR om.Place_Date >= ${new Date(start_date).getTime()})` : ''}
-        ${end_date ? `AND (om.Place_Date IS NULL OR om.Place_Date <= ${new Date(end_date).getTime()})` : ''}
         GROUP BY r.Retailer_Id
         ORDER BY total_spent DESC
       `;
 
-      const retailers = await executeQuery(retailersQuery, queryParams);
+      const retailers = await executeQuery(retailersQuery, allParams);
 
       // Get retailers by area
       const areaQuery = `
-        SELECT 
+        SELECT
           r.Area_Name,
           r.Area_Id,
           COUNT(DISTINCT r.Retailer_Id) as retailer_count,
           COUNT(DISTINCT om.Order_Id) as order_count,
           SUM(oi.ItemAmount) as total_spent
         FROM retailers r
-        LEFT JOIN order_master om ON r.Retailer_Id = om.Retailer_Id
+        LEFT JOIN order_master om ${orderJoinCondition}
         LEFT JOIN order_items oi ON om.Order_Id = oi.Order_Id
         ${whereClause}
-        ${start_date ? `AND (om.Place_Date IS NULL OR om.Place_Date >= ${new Date(start_date).getTime()})` : ''}
-        ${end_date ? `AND (om.Place_Date IS NULL OR om.Place_Date <= ${new Date(end_date).getTime()})` : ''}
         GROUP BY r.Area_Name, r.Area_Id
         ORDER BY retailer_count DESC
       `;
 
-      const retailersByArea = await executeQuery(areaQuery, queryParams);
+      const retailersByArea = await executeQuery(areaQuery, allParams);
 
       // Calculate statistics
       const totalRetailers = retailers.length;

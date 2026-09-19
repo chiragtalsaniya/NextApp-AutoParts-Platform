@@ -245,7 +245,7 @@ export default function OrderDetailsScreen() {
       await apiService.updateOrderStatus(orderId, newStatus, statusNotes);
       
       // Reload order from API to get server-side data
-      loadOrder();
+      loadOrderDetails();
       
       setShowStatusModal(false);
       setNewStatus('');

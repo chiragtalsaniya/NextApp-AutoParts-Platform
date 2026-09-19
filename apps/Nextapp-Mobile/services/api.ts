@@ -385,16 +385,18 @@ class ApiService {
     return this.extractResponseData(await this.api.get(`/parts/${partNumber}`));
   }
 
+  async updatePart(partNumber: string, partData: Record<string, unknown>) {
+    return this.extractResponseData(
+      await this.api.put(`/parts/${partNumber}`, partData),
+    );
+  }
+
   async updatePartStock(
     partNumber: string,
-    quantity: number,
-    operation: 'add' | 'subtract' | 'set',
+    stock: { T1?: number; T2?: number; T3?: number; T4?: number; T5?: number },
   ) {
     return this.extractResponseData(
-      await this.api.patch(`/parts/${partNumber}/stock`, {
-        quantity,
-        operation,
-      }),
+      await this.api.patch(`/parts/${partNumber}/stock`, stock),
     );
   }
 
@@ -535,6 +537,10 @@ class ApiService {
     return this.extractResponseData(await this.api.get('/orders/stats/summary'));
   }
 
+  async getDashboardStats() {
+    return this.extractResponseData(await this.api.get('/dashboard/stats'));
+  }
+
   async getRetailers(params?: PaginationParams) {
     return this.extractResponseData(await this.api.get('/retailers', { params }));
   }
@@ -629,11 +635,26 @@ class ApiService {
   async updateItemStock(
     branchCode: string,
     partNo: string,
-    quantity: number,
-    operation: string,
+    stockLevels: { Part_A: string | number; Part_B: string | number; Part_C: string | number; Narr?: string },
   ) {
     return this.extractResponseData(
-      await this.api.patch(`/item-status/${branchCode}/${partNo}/stock`, {
+      await this.api.patch(`/item-status/${branchCode}/${partNo}/stock`, stockLevels),
+    );
+  }
+
+  /**
+   * Adjust shelf stock up (add) or down (subtract) by a quantity.
+   * Subtraction pulls from shelf A first, then B, then C, and is
+   * rejected if there is not enough total stock.
+   */
+  async adjustItemStock(
+    branchCode: string,
+    partNo: string,
+    quantity: number,
+    operation: 'add' | 'subtract',
+  ) {
+    return this.extractResponseData(
+      await this.api.post(`/item-status/${branchCode}/${partNo}/adjust-stock`, {
         quantity,
         operation,
       }),

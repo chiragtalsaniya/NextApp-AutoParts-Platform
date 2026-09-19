@@ -553,7 +553,7 @@ export default function CreateOrderScreen() {
     const minQty = 5;
     const isLowStock = currentStock <= minQty;
     return {
-      currentStock: mockCurrentStock,
+      currentStock,
       isLowStock,
     };
   };

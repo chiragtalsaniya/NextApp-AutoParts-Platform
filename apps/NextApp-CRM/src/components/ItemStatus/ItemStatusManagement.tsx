@@ -26,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
 import { itemStatusAPI } from '../../services/api';
 import { safeFormat } from '../../utils/safeFormat';
+import * as XLSX from 'xlsx';
 
 export const ItemStatusManagement: React.FC = () => {
   const { user, getAccessibleStores } = useAuth();
@@ -44,6 +45,17 @@ export const ItemStatusManagement: React.FC = () => {
 
   const accessibleStores = getAccessibleStores();
 
+  const updateStats = (items: ItemStatus[]) => {
+    setStats({
+      total: items.length,
+      critical: items.filter((item: ItemStatus) => item.stock_level === 'critical').length,
+      low: items.filter((item: ItemStatus) => item.stock_level === 'low').length,
+      good: items.filter((item: ItemStatus) =>
+        item.stock_level === 'good' || item.stock_level === 'medium'
+      ).length,
+    });
+  };
+
   // Load item status data from API
   useEffect(() => {
     const loadItemStatus = async () => {
@@ -51,8 +63,10 @@ export const ItemStatusManagement: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const params: any = {};
-        
+        const params: any = {
+          limit: 1000,
+        };
+
         // Add role-based filtering
         if (user?.role !== 'super_admin') {
           if (user?.store_id) {
@@ -73,17 +87,10 @@ export const ItemStatusManagement: React.FC = () => {
             updated_at: item.updated_at,
           }));
           setItemStatus(mapped);
-          
-          // Calculate stats
-          const total = mapped.length;
-          const critical = mapped.filter((item: ItemStatus) => item.stock_level === 'critical').length;
-          const low = mapped.filter((item: ItemStatus) => item.stock_level === 'low').length;
-          const good = mapped.filter((item: ItemStatus) => 
-            item.stock_level === 'good' || item.stock_level === 'medium'
-          ).length;
-          setStats({ total, critical, low, good });
+          updateStats(mapped);
         } else {
           setItemStatus([]);
+          updateStats([]);
         }
       } catch (err) {
         console.error('Failed to load item status:', err);
@@ -142,12 +149,44 @@ export const ItemStatusManagement: React.FC = () => {
     }
   };
 
+  const handleExport = () => {
+    const exportRows = [
+      ['Part Number', 'Part Name', 'Store', 'Store Code', 'Stock A', 'Stock B', 'Stock C', 'Total Stock', 'Max Stock', 'Stock %', 'Stock Level', 'Rack', 'Last Sale', 'Last Purchase', 'Notes'],
+      ...filteredItems.map(item => [
+        item.Part_No,
+        item.Part_Name || '',
+        item.Branch_Name || '',
+        item.Branch_Code,
+        item.Part_A || '0',
+        item.Part_B || '0',
+        item.Part_C || '0',
+        item.total_stock ?? 0,
+        item.max_stock ?? 0,
+        item.stock_percentage ?? 0,
+        item.stock_level || '',
+        item.Part_Rack || '',
+        item.LastSale ? format(timestampToDate(item.LastSale)!, 'yyyy-MM-dd HH:mm') : '',
+        item.LastPurchase ? format(timestampToDate(item.LastPurchase)!, 'yyyy-MM-dd HH:mm') : '',
+        item.Narr || '',
+      ]),
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+    worksheet['!cols'] = [
+      { wch: 15 }, { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 },
+      { wch: 11 }, { wch: 10 }, { wch: 9 }, { wch: 11 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 30 }
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Item Status');
+    XLSX.writeFile(workbook, `item-status-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+  };
+
   const handleSaveItem = async () => {
     if (!selectedItem) return;
-    
+
     try {
       setLoading(true);
-      
+
       await itemStatusAPI.updateStockLevels(
         selectedItem.Branch_Code,
         selectedItem.Part_No,
@@ -158,7 +197,7 @@ export const ItemStatusManagement: React.FC = () => {
           Narr: formData.Narr
         }
       );
-      
+
       // Update rack location if changed
       if (formData.Part_Rack !== selectedItem.Part_Rack) {
         await itemStatusAPI.updateRackLocation(
@@ -167,17 +206,33 @@ export const ItemStatusManagement: React.FC = () => {
           { Part_Rack: formData.Part_Rack }
         );
       }
-      
+
+      // Update max stock if changed
+      if (formData.Part_Max !== selectedItem.Part_Max) {
+        await itemStatusAPI.createOrUpdateItemStatus({
+          Branch_Code: selectedItem.Branch_Code,
+          Part_No: selectedItem.Part_No,
+          Part_Max: formData.Part_Max
+        });
+      }
+
       // Refresh data
       const response = await itemStatusAPI.getItemStatus();
       if (response.data && response.data.data) {
-        setItemStatus(response.data.data);
+        const mapped = response.data.data.map((item: any) => ({
+          ...item,
+          LastSale: item.LastSale ? Number(item.LastSale) : undefined,
+          LastPurchase: item.LastPurchase ? Number(item.LastPurchase) : undefined,
+          Last_Sync: item.Last_Sync ? Number(item.Last_Sync) : undefined,
+        }));
+        setItemStatus(mapped);
+        updateStats(mapped);
       }
-      
+
       setShowEditModal(false);
       setSelectedItem(null);
       setFormData({});
-      
+
       alert('Item status updated successfully!');
     } catch (err) {
       console.error('Failed to update item:', err);
@@ -505,11 +560,18 @@ export const ItemStatusManagement: React.FC = () => {
           <p className="text-gray-600">Track part status and stock levels across all store locations</p>
         </div>
         <div className="flex space-x-3">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
+          <button
+            onClick={() => alert('CSV import is not available yet. Please contact your administrator to import item data.')}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+          >
             <Upload className="w-5 h-5" />
             <span>Import</span>
           </button>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+          <button
+            onClick={handleExport}
+            disabled={filteredItems.length === 0}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Download className="w-5 h-5" />
             <span>Export</span>
           </button>

@@ -7,6 +7,8 @@ import {
   StyleSheet,
   RefreshControl,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { apiService } from '@/services/api';
 import { SearchBar } from '@/components/SearchBar';
@@ -14,7 +16,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
 import { useAuth } from '@/context/AuthContext';
-import { Package, TriangleAlert as AlertTriangle, Plus, Minus, CreditCard as Edit3, TrendingUp, TrendingDown } from 'lucide-react-native';
+import { Package, TriangleAlert as AlertTriangle, Plus, Minus, TrendingDown } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface InventoryItem {
@@ -25,6 +27,8 @@ interface InventoryItem {
   maximumStock: number;
   rackLocation?: string;
   lastUpdated: string;
+  stockLevel: string;
+  stockPercentage: number;
   part?: {
     name: string;
     category: string;
@@ -45,8 +49,25 @@ export default function InventoryScreen() {
     try {
       setError(null);
       const response = await apiService.getItemStatus({ limit: 100 });
-      setInventory(response.data || []);
-      setFilteredInventory(response.data || []);
+      const rows = Array.isArray(response?.data) ? response.data : [];
+      const mapped: InventoryItem[] = rows.map((item: any) => ({
+        branchCode: item.Branch_Code,
+        partNo: item.Part_No,
+        currentStock: item.total_stock ?? 0,
+        minimumStock: item.Part_MinQty ?? 0,
+        maximumStock: item.max_stock ?? 0,
+        rackLocation: item.Part_Rack || undefined,
+        lastUpdated: item.Last_Sync ? String(item.Last_Sync) : '',
+        stockLevel: item.stock_level || 'good',
+        stockPercentage: item.stock_percentage ?? 0,
+        part: {
+          name: item.Part_Name || '',
+          category: item.Part_Catagory || '',
+          unitPrice: item.Part_Price ?? 0,
+        },
+      }));
+      setInventory(mapped);
+      setFilteredInventory(mapped);
     } catch (error: any) {
       setError(error.error || 'Failed to load inventory');
     } finally {
@@ -69,12 +90,13 @@ export default function InventoryScreen() {
     if (query.trim() === '') {
       setFilteredInventory(inventory);
     } else {
+      const q = query.toLowerCase();
       const filtered = inventory.filter(
         (item) =>
-          item.partNo.toLowerCase().includes(query.toLowerCase()) ||
-          item.part?.name.toLowerCase().includes(query.toLowerCase()) ||
-          item.part?.category.toLowerCase().includes(query.toLowerCase()) ||
-          item.rackLocation?.toLowerCase().includes(query.toLowerCase())
+          (item.partNo || '').toLowerCase().includes(q) ||
+          (item.part?.name || '').toLowerCase().includes(q) ||
+          (item.part?.category || '').toLowerCase().includes(q) ||
+          (item.rackLocation || '').toLowerCase().includes(q)
       );
       setFilteredInventory(filtered);
     }
@@ -82,7 +104,7 @@ export default function InventoryScreen() {
 
   const handleStockUpdate = async (item: InventoryItem, operation: 'add' | 'subtract', quantity: number) => {
     try {
-      await apiService.updateItemStock(item.branchCode, item.partNo, quantity, operation);
+      await apiService.adjustItemStock(item.branchCode, item.partNo, quantity, operation);
       loadInventory(); // Refresh the list
       Alert.alert('Success', `Stock ${operation === 'add' ? 'added' : 'removed'} successfully`);
     } catch (error: any) {
@@ -90,37 +112,36 @@ export default function InventoryScreen() {
     }
   };
 
+  const [quantityDialog, setQuantityDialog] = useState<{
+    item: InventoryItem;
+    operation: 'add' | 'subtract';
+  } | null>(null);
+  const [quantityInput, setQuantityInput] = useState('');
+
   const showStockUpdateDialog = (item: InventoryItem, operation: 'add' | 'subtract') => {
-    Alert.prompt(
-      `${operation === 'add' ? 'Add' : 'Remove'} Stock`,
-      `Enter quantity to ${operation}:`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Update',
-          onPress: (quantity) => {
-            const qty = parseInt(quantity || '0', 10);
-            if (qty > 0) {
-              handleStockUpdate(item, operation, qty);
-            }
-          },
-        },
-      ],
-      'plain-text',
-      '',
-      'numeric'
-    );
+    setQuantityInput('');
+    setQuantityDialog({ item, operation });
   };
 
-  const isLowStock = (item: InventoryItem) => {
-    return item.currentStock <= item.minimumStock;
+  const confirmStockUpdate = () => {
+    if (!quantityDialog) return;
+    const qty = parseInt(quantityInput, 10);
+    if (Number.isInteger(qty) && qty > 0) {
+      const { item, operation } = quantityDialog;
+      setQuantityDialog(null);
+      handleStockUpdate(item, operation, qty);
+    } else {
+      Alert.alert('Invalid quantity', 'Please enter a whole number greater than zero.');
+    }
   };
 
   const getStockStatus = (item: InventoryItem) => {
-    if (item.currentStock <= item.minimumStock) {
+    if (item.stockLevel === 'critical') {
+      return { status: 'low', color: '#DC2626', text: 'Critical' };
+    } else if (item.stockLevel === 'low') {
       return { status: 'low', color: '#DC2626', text: 'Low Stock' };
-    } else if (item.currentStock >= item.maximumStock) {
-      return { status: 'high', color: '#D97706', text: 'Overstock' };
+    } else if (item.stockLevel === 'medium') {
+      return { status: 'normal', color: '#D97706', text: 'Medium' };
     } else {
       return { status: 'normal', color: '#059669', text: 'Normal' };
     }
@@ -172,14 +193,16 @@ export default function InventoryScreen() {
 
         <View style={styles.stockDetails}>
           <View style={styles.stockRange}>
-            <Text style={styles.stockRangeLabel}>Min: {item.minimumStock}</Text>
             <Text style={styles.stockRangeLabel}>Max: {item.maximumStock}</Text>
-            {item.part?.unitPrice && (
-              <Text style={styles.priceText}>{formatCurrency(item.part.unitPrice)}</Text>
-            )}
+            <Text style={styles.stockRangeLabel}>{item.stockPercentage}% full</Text>
+            {item.part?.unitPrice ? (
+              <Text style={styles.priceText}>{formatCurrency(item.part.unitPrice / 100)}</Text>
+            ) : null}
           </View>
-          
-          <Text style={styles.lastUpdated}>Updated: {formatDate(item.lastUpdated)}</Text>
+
+          {item.lastUpdated ? (
+            <Text style={styles.lastUpdated}>Updated: {formatDate(item.lastUpdated)}</Text>
+          ) : null}
         </View>
 
         {/* Stock Actions */}
@@ -199,17 +222,12 @@ export default function InventoryScreen() {
             <Minus size={16} color="#DC2626" />
             <Text style={[styles.actionButtonText, { color: '#DC2626' }]}>Remove</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.actionButton, styles.editButton]}>
-            <Edit3 size={16} color="#2563EB" />
-            <Text style={[styles.actionButtonText, { color: '#2563EB' }]}>Edit</Text>
-          </TouchableOpacity>
         </View>
 
-        {isLowStock(item) && (
+        {item.stockLevel === 'critical' && (
           <View style={styles.alertBanner}>
             <AlertTriangle size={16} color="#DC2626" />
-            <Text style={styles.alertText}>Stock level is below minimum threshold</Text>
+            <Text style={styles.alertText}>Stock level is critically low</Text>
           </View>
         )}
       </View>
@@ -246,7 +264,7 @@ export default function InventoryScreen() {
               <View style={styles.statItem}>
                 <TrendingDown size={16} color="#DC2626" />
                 <Text style={styles.statText}>
-                  {filteredInventory.filter(item => isLowStock(item)).length} Low
+                  {filteredInventory.filter(item => item.stockLevel === 'critical' || item.stockLevel === 'low').length} Low
                 </Text>
               </View>
             </View>
@@ -285,6 +303,50 @@ export default function InventoryScreen() {
           </View>
         }
       />
+
+      {/* Quantity Input Modal */}
+      <Modal
+        visible={quantityDialog !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setQuantityDialog(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {quantityDialog?.operation === 'add' ? 'Add Stock' : 'Remove Stock'}
+            </Text>
+            {quantityDialog && (
+              <Text style={styles.modalSubtitle}>
+                {quantityDialog.item.partNo} — {quantityDialog.item.part?.name || 'Unknown part'}
+              </Text>
+            )}
+            <TextInput
+              style={styles.modalInput}
+              value={quantityInput}
+              onChangeText={setQuantityInput}
+              placeholder="Quantity"
+              placeholderTextColor="#94A3B8"
+              keyboardType="number-pad"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={() => setQuantityDialog(null)}
+              >
+                <Text style={[styles.modalButtonText, { color: '#64748B' }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalConfirmButton]}
+                onPress={confirmStockUpdate}
+              >
+                <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Update</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -466,6 +528,61 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     marginLeft: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    marginBottom: 16,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#1E293B',
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: '#F1F5F9',
+  },
+  modalConfirmButton: {
+    backgroundColor: '#667eea',
+  },
+  modalButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   alertBanner: {
     flexDirection: 'row',

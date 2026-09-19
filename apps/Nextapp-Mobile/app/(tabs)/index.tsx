@@ -19,42 +19,41 @@ import { ModernHeader } from '@/components/ModernHeader';
 import { ModernButton } from '@/components/ModernButton';
 import { StatsCard } from '@/components/StatsCard';
 import { HamburgerMenu } from '@/components/HamburgerMenu';
-import { Package, ShoppingCart, Users, TriangleAlert as AlertTriangle, TrendingUp, Clock, CircleCheck as CheckCircle, ChartBar as BarChart3, DollarSign, Bell, Plus, Scan, Camera, FileText, Menu, Grid3x3 } from 'lucide-react-native';
+import { Package, ShoppingCart, Users, TriangleAlert as AlertTriangle, TrendingUp, Clock, CircleCheck as CheckCircle, ChartBar as BarChart3, DollarSign, Bell, Plus, Scan, Camera, Menu, Grid3x3 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
 interface DashboardStats {
-  orders?: {
-    total: number;
-    pending: number;
-    delivered: number;
-    revenue: number;
-    growth?: number;
-  };
-  parts?: {
-    total: number;
-    lowStock: number;
-    categories: number;
-  };
-  retailers?: {
-    total: number;
-    active: number;
-    pending: number;
-  };
-  sales?: {
-    today: number;
-    thisWeek: number;
-    thisMonth: number;
-    growth?: number;
-  };
+  companies?: number;
+  stores?: number;
+  activeUsers?: number;
+  totalParts?: number;
+  availableParts?: number;
+  ordersToday?: number;
+  totalOrders?: number;
+  totalRevenue?: number;
+  activeRetailers?: number;
+  lowStockItems?: number;
+  storeInventory?: number;
+  pendingOrders?: number;
+  storeStaff?: number;
+  storeRetailers?: number;
+  pendingTasks?: number;
+  completedOrders?: number;
+  myRetailers?: number;
+  ordersCreated?: number;
+  myOrders?: number;
+  creditAvailable?: number;
+  creditLimit?: number;
+  outstandingAmount?: number;
 }
 
 export default function DashboardScreen() {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({});
-  const [lowStockAlerts, setLowStockAlerts] = useState([]);
+  const [lowStockAlerts, setLowStockAlerts] = useState<any[]>([]);
   const [notifications, setNotifications] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,57 +62,37 @@ export default function DashboardScreen() {
   const loadDashboardData = async () => {
     try {
       setError(null);
-      
-      const promises = [];
-      
-      // Load data based on user role
-      if (['super_admin', 'admin', 'manager'].includes(user?.role || '')) {
-        promises.push(
-          apiService.getOrderStats(),
-          apiService.getRetailerStats()
-        );
-      }
-      
+
+      const requests: Promise<any>[] = [apiService.getDashboardStats()];
+
       if (['super_admin', 'admin', 'manager', 'storeman'].includes(user?.role || '')) {
-        promises.push(apiService.getLowStockParts());
+        requests.push(apiService.getLowStockParts());
       }
 
-      if (['salesman'].includes(user?.role || '')) {
-        promises.push(apiService.getSalesReport());
-      }
-      
-      const results = await Promise.allSettled(promises);
-      
-      const newStats: DashboardStats = {};
-      let alertsData = [];
-      
-      if (results[0]?.status === 'fulfilled') {
-        newStats.orders = {
-          ...results[0].value,
-          growth: Math.floor(Math.random() * 20) - 5,
-        };
-      }
-      
-      if (results[1]?.status === 'fulfilled') {
-        newStats.retailers = results[1].value;
-      }
-      
-      if (results[2]?.status === 'fulfilled') {
-        alertsData = results[2].value;
-        setNotifications(alertsData.length);
+      const results = await Promise.allSettled(requests);
+
+      let newStats: DashboardStats = {};
+      let alertsData: any[] = [];
+      let hadError = true;
+
+      if (results[0]?.status === 'fulfilled' && results[0].value) {
+        newStats = results[0].value;
+        hadError = false;
       }
 
-      // Mock sales data for demonstration
-      if (user?.role === 'salesman') {
-        newStats.sales = {
-          today: Math.floor(Math.random() * 5000) + 1000,
-          thisWeek: Math.floor(Math.random() * 25000) + 5000,
-          thisMonth: Math.floor(Math.random() * 100000) + 20000,
-          growth: Math.floor(Math.random() * 30) - 10,
-        };
+      if (results.length > 1 && results[1]?.status === 'fulfilled') {
+        alertsData = Array.isArray(results[1].value) ? results[1].value : [];
+      } else if (results.length > 1 && results[1]?.status === 'rejected') {
+        // Low-stock alerts are supplementary; stats still show without them
       }
-      
-      setStats(newStats);
+
+      setNotifications(alertsData.length);
+
+      if (hadError) {
+        setError('Failed to load dashboard data');
+      } else {
+        setStats(newStats);
+      }
       setLowStockAlerts(alertsData);
     } catch (error: any) {
       setError(error.error || 'Failed to load dashboard data');
@@ -335,37 +314,34 @@ export default function DashboardScreen() {
 
   const renderStatsCards = () => {
     const role = user?.role || '';
-    
-    if (role === 'salesman' && stats.sales) {
+
+    if (role === 'salesman') {
       return (
         <Animated.View entering={FadeInUp.delay(400).duration(600)}>
-          <Text style={styles.sectionTitle}>Sales Performance</Text>
+          <Text style={styles.sectionTitle}>My Performance</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsScroll}>
             <StatsCard
-              title="Today"
-              value={formatCurrency(stats.sales.today)}
-              icon={<DollarSign size={24} color="#FFFFFF" />}
+              title="My Retailers"
+              value={stats.myRetailers ?? 0}
+              icon={<Users size={24} color="#FFFFFF" />}
               variant="gradient"
               gradientColors={['#667eea', '#764ba2']}
-              trend={{ value: 12, isPositive: true }}
               delay={0}
             />
             <StatsCard
-              title="This Week"
-              value={formatCurrency(stats.sales.thisWeek)}
-              icon={<TrendingUp size={24} color="#FFFFFF" />}
+              title="Orders Created"
+              value={stats.ordersCreated ?? 0}
+              icon={<ShoppingCart size={24} color="#FFFFFF" />}
               variant="gradient"
               gradientColors={['#f093fb', '#f5576c']}
-              trend={{ value: 8, isPositive: true }}
               delay={100}
             />
             <StatsCard
-              title="This Month"
-              value={formatCurrency(stats.sales.thisMonth)}
+              title="Orders Today"
+              value={stats.ordersToday ?? 0}
               icon={<BarChart3 size={24} color="#FFFFFF" />}
               variant="gradient"
               gradientColors={['#4facfe', '#00f2fe']}
-              trend={{ value: stats.sales.growth || 0, isPositive: (stats.sales.growth || 0) >= 0 }}
               delay={200}
             />
           </ScrollView>
@@ -373,28 +349,26 @@ export default function DashboardScreen() {
       );
     }
 
-    if (['admin', 'manager'].includes(role) && stats.orders) {
+    if (['super_admin', 'admin', 'manager'].includes(role)) {
       return (
         <Animated.View entering={FadeInUp.delay(400).duration(600)}>
           <Text style={styles.sectionTitle}>Business Overview</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsScroll}>
             <StatsCard
               title="Total Orders"
-              value={stats.orders.total}
+              value={stats.totalOrders ?? 0}
               icon={<ShoppingCart size={24} color="#667eea" />}
-              trend={{ value: 15, isPositive: true }}
               delay={0}
             />
             <StatsCard
               title="Revenue"
-              value={formatCurrency(stats.orders.revenue)}
+              value={formatCurrency(stats.totalRevenue ?? 0)}
               icon={<DollarSign size={24} color="#667eea" />}
-              trend={{ value: stats.orders.growth || 0, isPositive: (stats.orders.growth || 0) >= 0 }}
               delay={100}
             />
             <StatsCard
               title="Pending"
-              value={stats.orders.pending}
+              value={stats.pendingOrders ?? 0}
               icon={<Clock size={24} color="#667eea" />}
               delay={200}
             />
@@ -412,20 +386,18 @@ export default function DashboardScreen() {
               title="Low Stock"
               value={lowStockAlerts.length}
               icon={<AlertTriangle size={24} color="#ef4444" />}
-              trend={{ value: 5, isPositive: false }}
               delay={0}
             />
             <StatsCard
-              title="Total Parts"
-              value="2,847"
+              title="Store Parts"
+              value={stats.availableParts ?? 0}
               icon={<Package size={24} color="#667eea" />}
-              trend={{ value: 3, isPositive: true }}
               delay={100}
             />
             <StatsCard
-              title="Categories"
-              value="24"
-              icon={<BarChart3 size={24} color="#667eea" />}
+              title="Pending Tasks"
+              value={stats.pendingTasks ?? 0}
+              icon={<Clock size={24} color="#667eea" />}
               delay={200}
             />
           </ScrollView>
@@ -440,21 +412,20 @@ export default function DashboardScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsScroll}>
             <StatsCard
               title="My Orders"
-              value="12"
+              value={stats.myOrders ?? 0}
               icon={<ShoppingCart size={24} color="#667eea" />}
               delay={0}
             />
             <StatsCard
               title="Pending"
-              value="3"
+              value={stats.pendingOrders ?? 0}
               icon={<Clock size={24} color="#667eea" />}
               delay={100}
             />
             <StatsCard
               title="Credit Available"
-              value={formatCurrency(15000)}
+              value={formatCurrency(stats.creditAvailable ?? 0)}
               icon={<DollarSign size={24} color="#667eea" />}
-              trend={{ value: 10, isPositive: true }}
               delay={200}
             />
           </ScrollView>
@@ -506,8 +477,6 @@ export default function DashboardScreen() {
 
         {/* Menu Actions */}
         {renderMenuActions()}
-
-        {/* Low Stock Alerts */}
         {lowStockAlerts.length > 0 && ['admin', 'manager', 'storeman'].includes(user?.role || '') && (
           <Animated.View entering={FadeInUp.delay(600).duration(600)}>
             <ModernCard style={styles.alertsCard}>
@@ -539,53 +508,6 @@ export default function DashboardScreen() {
             </ModernCard>
           </Animated.View>
         )}
-
-        {/* Recent Activity */}
-        <Animated.View entering={FadeInUp.delay(800).duration(600)}>
-          <ModernCard style={styles.activityCard}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <View style={styles.activityList}>
-              <View style={styles.activityItem}>
-                <LinearGradient
-                  colors={['#10b981', '#059669']}
-                  style={styles.activityIcon}
-                >
-                  <CheckCircle size={16} color="#FFFFFF" />
-                </LinearGradient>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>Order #ORD-2024-001 completed</Text>
-                  <Text style={styles.activityTime}>2 hours ago</Text>
-                </View>
-              </View>
-              
-              <View style={styles.activityItem}>
-                <LinearGradient
-                  colors={['#f59e0b', '#d97706']}
-                  style={styles.activityIcon}
-                >
-                  <Package size={16} color="#FFFFFF" />
-                </LinearGradient>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>Stock updated for Brake Pads</Text>
-                  <Text style={styles.activityTime}>4 hours ago</Text>
-                </View>
-              </View>
-              
-              <View style={styles.activityItem}>
-                <LinearGradient
-                  colors={['#667eea', '#764ba2']}
-                  style={styles.activityIcon}
-                >
-                  <Users size={16} color="#FFFFFF" />
-                </LinearGradient>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>New retailer registered</Text>
-                  <Text style={styles.activityTime}>6 hours ago</Text>
-                </View>
-              </View>
-            </View>
-          </ModernCard>
-        </Animated.View>
       </ScrollView>
     </View>
   );
@@ -749,38 +671,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   alertSubtitle: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  activityCard: {
-    margin: 20,
-    marginTop: 0,
-  },
-  activityList: {
-    gap: 20,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  activityContent: {
-    flex: 1,
-  },
-  activityTitle: {
-    fontSize: 16,
-    color: '#1e293b',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  activityTime: {
     fontSize: 14,
     color: '#64748b',
   },

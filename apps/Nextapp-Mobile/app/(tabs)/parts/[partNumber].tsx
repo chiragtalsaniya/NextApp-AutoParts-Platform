@@ -88,22 +88,20 @@ export default function PartDetailsScreen() {
 
     setIsSaving(true);
     try {
-      // In a real app, you would call an API to update the part
-      // await apiService.updatePart(part.Part_Number, editForm);
-      
-      // For now, just update local state
-      const updatedPart = {
-        ...part,
-        ...editForm,
-        Part_Price: parseFloat(editForm.Part_Price),
-        Part_MinQty: parseInt(editForm.Part_MinQty),
-        Part_BasicDisc: parseFloat(editForm.Part_BasicDisc),
-        Part_SchemeDisc: parseFloat(editForm.Part_SchemeDisc),
-        Part_AdditionalDisc: parseFloat(editForm.Part_AdditionalDisc),
-      };
-      
-      setPart(updatedPart);
+      await apiService.updatePart(part.Part_Number, {
+        Part_Name: editForm.Part_Name,
+        Part_Price: parseFloat(editForm.Part_Price) || 0,
+        Part_MinQty: parseInt(editForm.Part_MinQty, 10) || 0,
+        Part_BasicDisc: parseFloat(editForm.Part_BasicDisc) || 0,
+        Part_SchemeDisc: parseFloat(editForm.Part_SchemeDisc) || 0,
+        Part_AdditionalDisc: parseFloat(editForm.Part_AdditionalDisc) || 0,
+        Part_Application: editForm.Part_Application,
+        Part_Catagory: editForm.Part_Catagory,
+        Focus_Group: editForm.Focus_Group,
+      });
+
       setIsEditing(false);
+      loadPartDetails();
       Alert.alert('Success', 'Part updated successfully');
     } catch (error: any) {
       Alert.alert('Error', error.error || 'Failed to update part');
@@ -116,13 +114,27 @@ export default function PartDetailsScreen() {
     if (!part || !stockAdjustment) return;
 
     try {
-      const quantity = parseInt(stockAdjustment);
-      if (isNaN(quantity) || quantity <= 0) {
+      const quantity = parseInt(stockAdjustment, 10);
+      if (isNaN(quantity) || quantity < 0) {
         Alert.alert('Error', 'Please enter a valid quantity');
         return;
       }
 
-      await apiService.updatePartStock(part.Part_Number, quantity, adjustmentType);
+      const currentT1 = part.T1 || 0;
+      let newT1 = currentT1;
+      if (adjustmentType === 'add') {
+        newT1 = currentT1 + quantity;
+      } else if (adjustmentType === 'subtract') {
+        newT1 = Math.max(0, currentT1 - quantity);
+        if (currentT1 - quantity < 0) {
+          Alert.alert('Error', `Cannot remove ${quantity}; only ${currentT1} in stock`);
+          return;
+        }
+      } else {
+        newT1 = quantity;
+      }
+
+      await apiService.updatePartStock(part.Part_Number, { T1: newT1 });
       Alert.alert('Success', 'Stock updated successfully');
       setShowStockModal(false);
       setStockAdjustment('');
@@ -150,11 +162,12 @@ export default function PartDetailsScreen() {
   const getStockStatus = () => {
     if (!part) return { currentStock: 0, isLowStock: false, status: 'Unknown', color: '#64748b' };
     
-    const mockCurrentStock = Math.floor(Math.random() * (part.Part_MinQty * 3)) + 1;
-    const isLowStock = mockCurrentStock <= part.Part_MinQty;
+    const currentStock =
+      (part.T1 || 0) + (part.T2 || 0) + (part.T3 || 0) + (part.T4 || 0) + (part.T5 || 0);
+    const isLowStock = currentStock <= part.Part_MinQty;
     
     return {
-      currentStock: mockCurrentStock,
+      currentStock,
       isLowStock,
       status: isLowStock ? 'Low Stock' : 'In Stock',
       color: isLowStock ? '#ef4444' : '#10b981',

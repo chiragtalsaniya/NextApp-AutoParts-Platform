@@ -167,8 +167,24 @@ router.get('/stats', authenticateToken, async (req, res) => {
       stats.pendingOrders = orderStats.pending_orders || 0;
       stats.completedOrders = orderStats.completed_orders || 0;
 
-      const [retailer] = await executeQuery('SELECT Credit_Limit FROM retailers WHERE Retailer_Id = ?', [retailerId]);
-      stats.creditAvailable = retailer && retailer.length > 0 ? retailer[0].Credit_Limit || 0 : 0;
+      const retailerRow = await executeQuery(
+        `SELECT r.Credit_Limit,
+                COALESCE((SELECT SUM(oi.ItemAmount)
+                          FROM order_master om2
+                          JOIN order_items oi ON om2.Order_Id = oi.Order_Id
+                          WHERE om2.Retailer_Id = ? AND om2.Order_Status NOT IN ('Cancelled')), 0) as outstanding_amount
+         FROM retailers r WHERE r.Retailer_Id = ?`,
+        [retailerId, retailerId]
+      );
+      if (retailerRow.length > 0) {
+        const creditLimit = Number(retailerRow[0].Credit_Limit) || 0;
+        const outstanding = Number(retailerRow[0].outstanding_amount) || 0;
+        stats.creditLimit = creditLimit;
+        stats.outstandingAmount = outstanding;
+        stats.creditAvailable = Math.max(0, creditLimit - outstanding);
+      } else {
+        stats.creditAvailable = 0;
+      }
     }
 
     res.json(stats);

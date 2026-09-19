@@ -31,10 +31,9 @@ const formatNumber = (n: number): string => {
   return String(n);
 };
 
-const formatCurrency = (cents: number): string => {
-  const dollars = cents / 100;
-  if (dollars >= 1000) return `$${(dollars / 1000).toFixed(1)}K`;
-  return `$${dollars.toFixed(0)}`;
+const formatCurrency = (amount: number): string => {
+  if (amount >= 100000) return `${(amount / 1000).toFixed(1)}K`;
+  return `${amount.toFixed(0)}`;
 };
 
 export const DashboardStats: React.FC = () => {
@@ -42,6 +41,7 @@ export const DashboardStats: React.FC = () => {
   const [stats, setStats] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -57,7 +57,7 @@ export const DashboardStats: React.FC = () => {
       }
     };
     fetchStats();
-  }, [user?.role]);
+  }, [user?.role, refreshKey]);
 
   const getStatsForRole = (): { title: string; value: string | number; icon: React.ComponentType<any> }[] => {
     if (error) return [];
@@ -108,7 +108,7 @@ export const DashboardStats: React.FC = () => {
         return [
           { title: 'My Orders', value: stats.myOrders || 0, icon: ShoppingCart },
           { title: 'Pending Orders', value: stats.pendingOrders || 0, icon: Package },
-          { title: 'Credit Available', value: formatCurrency((stats.creditAvailable || 0) * 100), icon: TrendingUp },
+          { title: 'Credit Available', value: formatCurrency(stats.creditAvailable || 0), icon: TrendingUp },
           { title: 'Completed Orders', value: stats.completedOrders || 0, icon: PackageCheck },
         ];
       default:
@@ -121,7 +121,13 @@ export const DashboardStats: React.FC = () => {
   if (error) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700 text-center">
-        <p className="text-gray-500 dark:text-gray-400">Unable to load dashboard statistics. Please try again later.</p>
+        <p className="text-gray-500 dark:text-gray-400 mb-4">Unable to load dashboard statistics.</p>
+        <button
+          onClick={() => setRefreshKey(k => k + 1)}
+          className="text-[#003366] hover:text-blue-800 text-sm font-medium"
+        >
+          Retry
+        </button>
       </div>
     );
   }

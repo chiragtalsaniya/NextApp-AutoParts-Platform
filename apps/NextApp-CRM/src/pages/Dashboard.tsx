@@ -1,9 +1,18 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardStats } from '../components/Dashboard/DashboardStats';
 import { useAuth } from '../context/AuthContext';
 
+interface QuickAction {
+  title: string;
+  description: string;
+  color: string;
+  path: string;
+}
+
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const getRoleSpecificWelcome = () => {
     switch (user?.role) {
@@ -15,27 +24,27 @@ export const Dashboard: React.FC = () => {
       case 'admin':
         return {
           title: 'Company Administration Dashboard',
-          description: `Manage your company operations, stores, and team members for Company ${user.company_id}.`
+          description: 'Manage your company operations, stores, and team members.'
         };
       case 'manager':
         return {
           title: 'Store Management Dashboard',
-          description: `Oversee store operations, inventory, orders, and team for Store ${user.store_id}.`
+          description: 'Oversee store operations, inventory, orders, and team.'
         };
       case 'storeman':
         return {
           title: 'Store Operations Dashboard',
-          description: `Manage inventory and process orders for Store ${user.store_id}.`
+          description: 'Manage inventory and process orders.'
         };
       case 'salesman':
         return {
           title: 'Sales Dashboard',
-          description: `Track your sales activities and manage retailer relationships for Store ${user.store_id}.`
+          description: 'Track your sales activities and manage retailer relationships.'
         };
       case 'retailer':
         return {
           title: 'Retailer Portal',
-          description: `Access your orders, account information, and available products as Retailer ${user.retailer_id}.`
+          description: 'Access your orders, account information, and available products.'
         };
       default:
         return {
@@ -45,92 +54,49 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const getRoleSpecificActivities = () => {
+  const getRoleSpecificQuickActions = (): QuickAction[] => {
     switch (user?.role) {
       case 'super_admin':
         return [
-          { type: 'success', message: 'New company "Tech Auto Parts" added', time: '2 hours ago' },
-          { type: 'info', message: 'System backup completed successfully', time: '4 hours ago' },
-          { type: 'warning', message: 'Server maintenance scheduled for tonight', time: '6 hours ago' },
+          { title: 'Add Company', description: 'Register new company', color: 'blue', path: '/companies' },
+          { title: 'System Reports', description: 'View analytics', color: 'green', path: '/reports' },
+          { title: 'User Management', description: 'Manage all users', color: 'purple', path: '/users' },
+          { title: 'System Settings', description: 'Configure system', color: 'orange', path: '/settings' },
         ];
       case 'admin':
         return [
-          { type: 'success', message: 'New store "Downtown Branch" added', time: '1 hour ago' },
-          { type: 'info', message: 'Monthly report generated', time: '3 hours ago' },
-          { type: 'warning', message: 'User permissions updated for 3 staff members', time: '5 hours ago' },
+          { title: 'Add Store', description: 'Create new branch', color: 'blue', path: '/stores' },
+          { title: 'Company Reports', description: 'View performance', color: 'green', path: '/reports' },
+          { title: 'Manage Users', description: 'Company staff', color: 'purple', path: '/users' },
+          { title: 'Store Settings', description: 'Configure stores', color: 'orange', path: '/stores' },
         ];
       case 'manager':
         return [
-          { type: 'success', message: 'Order #ORD-2024-156 completed', time: '30 minutes ago' },
-          { type: 'info', message: 'New retailer "Quick Fix Auto" registered', time: '2 hours ago' },
-          { type: 'warning', message: 'Low stock alert: Brake Pads', time: '4 hours ago' },
+          { title: 'Add Retailer', description: 'Register new client', color: 'blue', path: '/retailers' },
+          { title: 'Create Order', description: 'Process new request', color: 'green', path: '/orders' },
+          { title: 'View Reports', description: 'Store analytics', color: 'purple', path: '/reports' },
+          { title: 'Manage Staff', description: 'Store team', color: 'orange', path: '/users' },
         ];
       case 'storeman':
         return [
-          { type: 'success', message: 'Inventory updated: 50 new spark plugs', time: '1 hour ago' },
-          { type: 'info', message: 'Order #ORD-2024-157 picked and ready', time: '2 hours ago' },
-          { type: 'warning', message: 'Restock needed: Oil filters', time: '3 hours ago' },
+          { title: 'Update Inventory', description: 'Stock management', color: 'blue', path: '/item-status' },
+          { title: 'Process Orders', description: 'Pick and pack', color: 'green', path: '/orders' },
+          { title: 'View Stock', description: 'Check availability', color: 'purple', path: '/item-status' },
+          { title: 'Order Reports', description: 'Daily summary', color: 'orange', path: '/reports' },
         ];
       case 'salesman':
         return [
-          { type: 'success', message: 'New order created for Downtown Auto', time: '45 minutes ago' },
-          { type: 'info', message: 'Retailer meeting scheduled for tomorrow', time: '2 hours ago' },
-          { type: 'warning', message: 'Follow up needed with 2 retailers', time: '4 hours ago' },
+          { title: 'Create Order', description: 'For retailer', color: 'blue', path: '/orders' },
+          { title: 'View Retailers', description: 'My clients', color: 'green', path: '/retailers' },
+          { title: 'Check Inventory', description: 'Available parts', color: 'purple', path: '/parts' },
+          { title: 'Sales Report', description: 'My performance', color: 'orange', path: '/reports' },
         ];
       case 'retailer':
         return [
-          { type: 'success', message: 'Order #ORD-2024-158 shipped', time: '1 hour ago' },
-          { type: 'info', message: 'New parts catalog available', time: '3 hours ago' },
-          { type: 'warning', message: 'Payment due in 5 days', time: '1 day ago' },
-        ];
-      default:
-        return [];
-    }
-  };
-
-  const getRoleSpecificQuickActions = () => {
-    switch (user?.role) {
-      case 'super_admin':
-        return [
-          { title: 'Add Company', description: 'Register new company', color: 'blue' },
-          { title: 'System Reports', description: 'View analytics', color: 'green' },
-          { title: 'User Management', description: 'Manage all users', color: 'purple' },
-          { title: 'System Settings', description: 'Configure system', color: 'orange' },
-        ];
-      case 'admin':
-        return [
-          { title: 'Add Store', description: 'Create new branch', color: 'blue' },
-          { title: 'Company Reports', description: 'View performance', color: 'green' },
-          { title: 'Manage Users', description: 'Company staff', color: 'purple' },
-          { title: 'Store Settings', description: 'Configure stores', color: 'orange' },
-        ];
-      case 'manager':
-        return [
-          { title: 'Add Retailer', description: 'Register new client', color: 'blue' },
-          { title: 'Create Order', description: 'Process new request', color: 'green' },
-          { title: 'View Reports', description: 'Store analytics', color: 'purple' },
-          { title: 'Manage Staff', description: 'Store team', color: 'orange' },
-        ];
-      case 'storeman':
-        return [
-          { title: 'Update Inventory', description: 'Stock management', color: 'blue' },
-          { title: 'Process Orders', description: 'Pick and pack', color: 'green' },
-          { title: 'View Stock', description: 'Check availability', color: 'purple' },
-          { title: 'Order Reports', description: 'Daily summary', color: 'orange' },
-        ];
-      case 'salesman':
-        return [
-          { title: 'Create Order', description: 'For retailer', color: 'blue' },
-          { title: 'View Retailers', description: 'My clients', color: 'green' },
-          { title: 'Check Inventory', description: 'Available parts', color: 'purple' },
-          { title: 'Sales Report', description: 'My performance', color: 'orange' },
-        ];
-      case 'retailer':
-        return [
-          { title: 'Place Order', description: 'Order new parts', color: 'blue' },
-          { title: 'Order History', description: 'View past orders', color: 'green' },
-          { title: 'Account Info', description: 'Update details', color: 'purple' },
-          { title: 'Catalog', description: 'Browse parts', color: 'orange' },
+          { title: 'Place Order', description: 'Order new parts', color: 'blue', path: '/orders' },
+          { title: 'Order History', description: 'View past orders', color: 'green', path: '/orders' },
+          { title: 'Account Info', description: 'Update details', color: 'purple', path: '/settings' },
+          { title: 'Catalog', description: 'Browse parts', color: 'orange', path: '/parts' },
         ];
       default:
         return [];
@@ -138,17 +104,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const welcome = getRoleSpecificWelcome();
-  const activities = getRoleSpecificActivities();
   const quickActions = getRoleSpecificQuickActions();
-
-  const getActivityColor = (type: string) => {
-    switch (type) {
-      case 'success': return 'bg-green-500';
-      case 'info': return 'bg-blue-500';
-      case 'warning': return 'bg-yellow-500';
-      default: return 'bg-gray-500';
-    }
-  };
 
   const getActionColor = (color: string) => {
     switch (color) {
@@ -173,43 +129,22 @@ export const Dashboard: React.FC = () => {
       {/* Stats Grid */}
       <DashboardStats />
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Recent Activity - Takes 2 columns */}
-        <div className="xl:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Recent Activity</h3>
-            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</button>
-          </div>
-          <div className="space-y-4">
-            {activities.map((activity, index) => (
-              <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                <div className={`w-3 h-3 ${getActivityColor(activity.type)} rounded-full flex-shrink-0`}></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{activity.message}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Actions - Takes 1 column */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Quick Actions</h3>
-          <div className="space-y-3">
-            {quickActions.map((action, index) => (
-              <button
-                key={index}
-                className={`w-full p-4 text-left rounded-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 ${getActionColor(action.color)} dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100 shadow-sm hover:shadow-md`}
-                tabIndex={0}
-                aria-label={action.title}
-              >
-                <p className="font-semibold dark:text-gray-100 mb-1">{action.title}</p>
-                <p className="text-sm opacity-75 dark:text-gray-300">{action.description}</p>
-              </button>
-            ))}
-          </div>
+      {/* Quick Actions */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Quick Actions</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {quickActions.map((action, index) => (
+            <button
+              key={index}
+              onClick={() => navigate(action.path)}
+              className={`w-full p-4 text-left rounded-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 ${getActionColor(action.color)} dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100 shadow-sm hover:shadow-md`}
+              tabIndex={0}
+              aria-label={action.title}
+            >
+              <p className="font-semibold dark:text-gray-100 mb-1">{action.title}</p>
+              <p className="text-sm opacity-75 dark:text-gray-300">{action.description}</p>
+            </button>
+          ))}
         </div>
       </div>
     </div>

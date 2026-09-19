@@ -398,9 +398,9 @@ export default function OrdersScreen() {
             </View>
             
             <View style={styles.orderAmount}>
-              <Text style={styles.amountText}>{formatCurrency(item.totalAmount || item.ItemAmount || 0)}</Text>
+              <Text style={styles.amountText}>{formatCurrency(item.totalAmount || (item as any).ItemAmount || 0)}</Text>
               <Text style={styles.itemCount}>
-                {(item.itemCount || item.items?.length || 0)} item{(item.itemCount || item.items?.length || 0) !== 1 ? 's' : ''}
+                {(item as any).itemCount || item.items?.length || 0} item{((item as any).itemCount || item.items?.length || 0) !== 1 ? 's' : ''}
               </Text>
             </View>
           </View>

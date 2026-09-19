@@ -1,7 +1,7 @@
 import express from 'express';
 import { executeQuery } from '../config/database.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
-import { validateRequest, partCreateSchema, partUpdateSchema } from '../middleware/validation.js';
+import { validateRequest, partCreateSchema, partUpdateSchema, partStockUpdateSchema } from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -264,6 +264,7 @@ router.put('/:partNumber',
 router.patch('/:partNumber/stock',
   authenticateToken,
   authorizeRoles('super_admin', 'admin', 'manager', 'storeman'),
+  validateRequest(partStockUpdateSchema),
   async (req, res) => {
     try {
       const partNumber = req.params.partNumber;

@@ -2,13 +2,14 @@ import Joi from 'joi';
 
 export const validateRequest = (schema) => {
   return (req, res, next) => {
-    const { error } = schema.validate(req.body);
+    const { error, value } = schema.validate(req.body, { stripUnknown: true });
     if (error) {
       return res.status(400).json({
         error: 'Validation error',
         details: error.details.map(detail => detail.message)
       });
     }
+    req.body = value;
     next();
   };
 };
@@ -179,6 +180,14 @@ export const partUpdateSchema = Joi.object({
   Part_Discount: Joi.string().max(10),
   Part_Image: Joi.string().uri().allow('', null)
 }).min(1);
+
+export const partStockUpdateSchema = Joi.object({
+  T1: Joi.number().integer().min(0).required(),
+  T2: Joi.number().integer().min(0).required(),
+  T3: Joi.number().integer().min(0).required(),
+  T4: Joi.number().integer().min(0).required(),
+  T5: Joi.number().integer().min(0).required()
+});
 
 export const orderStatusUpdateSchema = Joi.object({
   status: Joi.string().valid('New', 'Pending', 'Processing', 'Hold', 'Picked', 'Dispatched', 'Completed', 'Cancelled').required(),

@@ -481,6 +481,75 @@ router.patch('/:branchCode/:partNo/rack',
   }
 );
 
+// Adjust shelf stock up or down by a quantity (A -> B -> C on subtract)
+router.post('/:branchCode/:partNo/adjust-stock',
+  authenticateToken,
+  authorizeRoles('super_admin', 'admin', 'manager', 'storeman'),
+  async (req, res) => {
+    try {
+      const { branchCode, partNo } = req.params;
+      const { quantity, operation } = req.body;
+
+      // Check store access
+      if (req.user.role !== 'super_admin' && req.user.store_id !== branchCode) {
+        return res.status(403).json({ error: 'Access denied to this store' });
+      }
+
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        return res.status(400).json({ error: 'Valid quantity is required' });
+      }
+
+      if (operation !== 'add' && operation !== 'subtract') {
+        return res.status(400).json({ error: 'Operation must be add or subtract' });
+      }
+
+      const stockResult = await executeQuery(
+        `SELECT CAST(Part_A AS UNSIGNED) as Part_A,
+                CAST(Part_B AS UNSIGNED) as Part_B,
+                CAST(Part_C AS UNSIGNED) as Part_C
+         FROM item_status
+         WHERE Branch_Code = ? AND Part_No = ?`,
+        [branchCode, partNo]
+      );
+
+      if (stockResult.length === 0) {
+        return res.status(404).json({ error: 'Item status not found' });
+      }
+
+      const levels = [
+        Number(stockResult[0].Part_A) || 0,
+        Number(stockResult[0].Part_B) || 0,
+        Number(stockResult[0].Part_C) || 0,
+      ];
+
+      if (operation === 'add') {
+        levels[0] += quantity;
+      } else {
+        let remaining = quantity;
+        for (let i = 0; i < levels.length && remaining > 0; i++) {
+          const take = Math.min(levels[i], remaining);
+          levels[i] -= take;
+          remaining -= take;
+        }
+        if (remaining > 0) {
+          const available = quantity - remaining;
+          return res.status(400).json({ error: `Insufficient stock: only ${available} available` });
+        }
+      }
+
+      await executeQuery(
+        'UPDATE item_status SET Part_A = ?, Part_B = ?, Part_C = ?, Last_Sync = ? WHERE Branch_Code = ? AND Part_No = ?',
+        [String(levels[0]), String(levels[1]), String(levels[2]), Date.now(), branchCode, partNo]
+      );
+
+      res.json({ message: `Stock ${operation === 'add' ? 'added' : 'removed'} successfully` });
+    } catch (error) {
+      console.error('Adjust stock error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
 // Record sale transaction
 router.post('/:branchCode/:partNo/sale',
   authenticateToken,
@@ -495,7 +564,7 @@ router.post('/:branchCode/:partNo/sale',
         return res.status(403).json({ error: 'Access denied to this store' });
       }
 
-      if (!quantity || quantity <= 0) {
+      if (!Number.isInteger(quantity) || quantity <= 0) {
         return res.status(400).json({ error: 'Valid quantity is required' });
       }
 
@@ -519,6 +588,33 @@ router.post('/:branchCode/:partNo/sale',
         return res.status(404).json({ error: 'Item status not found' });
       }
 
+      // Decrement shelf stock (A -> B -> C) without going negative
+      const stockQuery = `
+        SELECT CAST(Part_A AS UNSIGNED) as Part_A,
+               CAST(Part_B AS UNSIGNED) as Part_B,
+               CAST(Part_C AS UNSIGNED) as Part_C
+        FROM item_status
+        WHERE Branch_Code = ? AND Part_No = ?
+      `;
+      const [stock] = await executeQuery(stockQuery, [branchCode, partNo]);
+
+      const levels = [Number(stock?.Part_A) || 0, Number(stock?.Part_B) || 0, Number(stock?.Part_C) || 0];
+      let remaining = quantity;
+      for (let i = 0; i < levels.length && remaining > 0; i++) {
+        const take = Math.min(levels[i], remaining);
+        levels[i] -= take;
+        remaining -= take;
+      }
+
+      if (remaining > 0) {
+        return res.status(400).json({ error: `Insufficient stock: only ${quantity - remaining} available` });
+      }
+
+      await executeQuery(
+        'UPDATE item_status SET Part_A = ?, Part_B = ?, Part_C = ? WHERE Branch_Code = ? AND Part_No = ?',
+        [String(levels[0]), String(levels[1]), String(levels[2]), branchCode, partNo]
+      );
+
       res.json({ message: 'Sale transaction recorded successfully' });
     } catch (error) {
       console.error('Record sale error:', error);
@@ -541,7 +637,7 @@ router.post('/:branchCode/:partNo/purchase',
         return res.status(403).json({ error: 'Access denied to this store' });
       }
 
-      if (!quantity || quantity <= 0) {
+      if (!Number.isInteger(quantity) || quantity <= 0) {
         return res.status(400).json({ error: 'Valid quantity is required' });
       }
 
@@ -564,6 +660,12 @@ router.post('/:branchCode/:partNo/purchase',
       if (result.affectedRows === 0) {
         return res.status(404).json({ error: 'Item status not found' });
       }
+
+      // Add received stock to shelf A
+      await executeQuery(
+        'UPDATE item_status SET Part_A = CAST(Part_A AS UNSIGNED) + ? WHERE Branch_Code = ? AND Part_No = ?',
+        [quantity, branchCode, partNo]
+      );
 
       res.json({ message: 'Purchase transaction recorded successfully' });
     } catch (error) {
