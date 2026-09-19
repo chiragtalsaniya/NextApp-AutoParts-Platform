@@ -60,15 +60,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (loading) return;
     // Fetch all companies if user is super_admin
     const fetchAllCompanies = async () => {
-      console.log('AuthContext: fetchAllCompanies user', user);
       if (user?.role === 'super_admin') {
         try {
           const response = await companiesAPI.getCompanies();
           setAllCompanyIds(Array.isArray(response.data) ? response.data.map((c: any) => c.id) : []);
-          console.log('AuthContext: setAllCompanyIds', Array.isArray(response.data) ? response.data.map((c: any) => c.id) : []);
         } catch (err) {
           setAllCompanyIds([]);
-          console.error('AuthContext: fetchAllCompanies error', err);
         }
       } else if (user?.role === 'admin' && user.company_id) {
         setAllCompanyIds([user.company_id]);
@@ -140,7 +137,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(response.data.user);
       return true;
     } catch (error) {
-      console.error('Login error:', error);
       return false;
     }
   };
@@ -150,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await authAPI.logout();
       setUser(null);
     } catch (error) {
-      console.error('Logout error:', error);
+      setUser(null);
     }
   };
 
@@ -234,7 +230,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return [];
       }
     })();
-    console.log('AuthContext: getAccessibleCompanies returns', result);
     return result;
   };
 

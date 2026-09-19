@@ -3,6 +3,7 @@ import { X, Plus, Minus, Trash2, Search, Package, AlertTriangle, Save, Calculato
 import { NewOrderForm, NewOrderItemForm, Part, Retailer, dateToTimestamp, formatCurrency } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { ItemMaster } from '../Parts/ItemMaster';
+import { retailersAPI } from '../../services/api';
 
 interface NewOrderFormProps {
   isOpen: boolean;
@@ -23,30 +24,6 @@ interface DuplicateItemConfirmation {
   newPart: Part;
 }
 
-const mockRetailers: Retailer[] = [
-  {
-    Retailer_Id: 1,
-    Retailer_Name: 'Downtown Auto Parts',
-    Contact_Person: 'Michael Johnson',
-    Retailer_Email: 'michael@downtownauto.com',
-    Credit_Limit: 50000
-  },
-  {
-    Retailer_Id: 2,
-    Retailer_Name: 'Quick Fix Auto',
-    Contact_Person: 'Sarah Williams',
-    Retailer_Email: 'sarah@quickfixauto.com',
-    Credit_Limit: 75000
-  },
-  {
-    Retailer_Id: 3,
-    Retailer_Name: 'Sunset Auto Supply',
-    Contact_Person: 'David Chen',
-    Retailer_Email: 'david@sunsetauto.com',
-    Credit_Limit: 100000
-  }
-];
-
 export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose, onSubmit }) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState<NewOrderForm>({
@@ -59,7 +36,7 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
   });
   const [showPartSelector, setShowPartSelector] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
-  const [retailers] = useState<Retailer[]>(mockRetailers);
+  const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [selectedRetailer, setSelectedRetailer] = useState<Retailer | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [duplicateConfirmation, setDuplicateConfirmation] = useState<DuplicateItemConfirmation>({
@@ -67,6 +44,18 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
     existingIndex: -1,
     newPart: {} as Part
   });
+
+  useEffect(() => {
+    const loadRetailers = async () => {
+      try {
+        const res = await retailersAPI.getRetailers({ limit: 100 });
+        setRetailers(res.data?.retailers || []);
+      } catch (err) {
+        // Silently fail - the form will show empty retailer list
+      }
+    };
+    loadRetailers();
+  }, []);
 
   useEffect(() => {
     if (formData.retailer_id) {

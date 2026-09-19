@@ -61,8 +61,6 @@ router.get('/', authenticateToken, async (req, res) => {
       ${whereClause}
       ORDER BY s.Branch_Name
       LIMIT ${safeLimit} OFFSET ${offset}`;
-    console.log('Stores SQL:', storesQuery);
-    console.log('Stores Params:', safeQueryParams);
 
     const stores = await executeQuery(storesQuery, safeQueryParams);
 

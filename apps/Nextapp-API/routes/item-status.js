@@ -102,17 +102,6 @@ router.get('/', authenticateToken, async (req, res) => {
     const finalLimit = Number(safeLimit);
     const finalOffset = Number(offset);
 
-    // Debug logging
-    console.log('Pagination params:', { 
-      safePage, 
-      safeLimit, 
-      finalLimit, 
-      finalOffset, 
-      originalQueryParams: queryParams.length,
-      cleanQueryParams: cleanQueryParams.length,
-      allParams: [...cleanQueryParams, finalLimit, finalOffset]
-    });
-
     // Build the query with LIMIT/OFFSET interpolated
     const itemStatusQuery = `
       SELECT 

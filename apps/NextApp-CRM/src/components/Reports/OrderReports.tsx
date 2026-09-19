@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Download, 
   FileText, 
@@ -15,73 +15,7 @@ import {
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { Order, OrderStatus } from '../../types';
 import { exportToExcel, exportToPDF, exportToWord } from '../../utils/exportUtils';
-
-const mockOrders: Order[] = [
-  {
-    id: 'ORD-2024-001',
-    retailer_id: '1',
-    salesman_id: '1',
-    store_id: '1',
-    status: 'delivered',
-    total_price: 156.97,
-    created_at: '2024-01-15T10:30:00Z',
-    items: [
-      { id: '1', order_id: 'ORD-2024-001', part_id: '1', quantity: 4, price_per_unit: 12.99, part_name: 'NGK Spark Plug' },
-      { id: '2', order_id: 'ORD-2024-001', part_id: '2', quantity: 2, price_per_unit: 45.99, part_name: 'Brake Pads - Front' }
-    ]
-  },
-  {
-    id: 'ORD-2024-002',
-    retailer_id: '2',
-    salesman_id: '1',
-    store_id: '1',
-    status: 'shipped',
-    total_price: 89.97,
-    created_at: '2024-01-14T14:15:00Z',
-    items: [
-      { id: '3', order_id: 'ORD-2024-002', part_id: '3', quantity: 10, price_per_unit: 8.99, part_name: 'Oil Filter' }
-    ]
-  },
-  {
-    id: 'ORD-2024-003',
-    retailer_id: '3',
-    salesman_id: '2',
-    store_id: '1',
-    status: 'processing',
-    total_price: 234.50,
-    created_at: '2024-01-13T09:20:00Z',
-    items: [
-      { id: '4', order_id: 'ORD-2024-003', part_id: '1', quantity: 8, price_per_unit: 12.99, part_name: 'NGK Spark Plug' },
-      { id: '5', order_id: 'ORD-2024-003', part_id: '4', quantity: 6, price_per_unit: 15.99, part_name: 'Air Filter' }
-    ]
-  },
-  {
-    id: 'ORD-2024-004',
-    retailer_id: '1',
-    salesman_id: '1',
-    store_id: '1',
-    status: 'pending',
-    total_price: 67.45,
-    created_at: '2024-01-12T16:45:00Z',
-    items: [
-      { id: '6', order_id: 'ORD-2024-004', part_id: '2', quantity: 1, price_per_unit: 45.99, part_name: 'Brake Pads - Front' },
-      { id: '7', order_id: 'ORD-2024-004', part_id: '3', quantity: 2, price_per_unit: 8.99, part_name: 'Oil Filter' }
-    ]
-  },
-  {
-    id: 'ORD-2024-005',
-    retailer_id: '4',
-    salesman_id: '2',
-    store_id: '1',
-    status: 'delivered',
-    total_price: 445.20,
-    created_at: '2024-01-11T11:30:00Z',
-    items: [
-      { id: '8', order_id: 'ORD-2024-005', part_id: '1', quantity: 12, price_per_unit: 12.99, part_name: 'NGK Spark Plug' },
-      { id: '9', order_id: 'ORD-2024-005', part_id: '4', quantity: 18, price_per_unit: 15.99, part_name: 'Air Filter' }
-    ]
-  }
-];
+import { reportsAPI } from '../../services/api';
 
 interface ReportFilters {
   dateRange: 'today' | 'week' | 'month' | 'quarter' | 'year' | 'custom';
@@ -94,7 +28,9 @@ interface ReportFilters {
 }
 
 export const OrderReports: React.FC = () => {
-  const [orders] = useState<Order[]>(mockOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ReportFilters>({
     dateRange: 'month',
     startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
@@ -105,6 +41,26 @@ export const OrderReports: React.FC = () => {
     retailerId: 'all'
   });
   const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    const loadReportData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await reportsAPI.getOrderReport({
+          start_date: filters.startDate,
+          end_date: filters.endDate,
+          status: filters.status === 'all' ? undefined : filters.status,
+        });
+        setOrders(res.data?.orders || []);
+      } catch (err) {
+        setError('Failed to load report data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadReportData();
+  }, [filters.startDate, filters.endDate, filters.status]);
 
   const handleFilterChange = (key: keyof ReportFilters, value: string) => {
     setFilters(prev => {

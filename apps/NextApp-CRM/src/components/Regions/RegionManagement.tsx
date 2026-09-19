@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   Search, 
@@ -14,44 +14,11 @@ import {
   Users
 } from 'lucide-react';
 import { Region } from '../../types';
-
-const mockRegions: Region[] = [
-  {
-    id: 'NYC-REGION-1',
-    name: 'Manhattan Region',
-    store_id: 'NYC001',
-    created_by: '2'
-  },
-  {
-    id: 'NYC-REGION-2',
-    name: 'Brooklyn Region',
-    store_id: 'NYC002',
-    created_by: '2'
-  },
-  {
-    id: 'LA-REGION-1',
-    name: 'Hollywood Region',
-    store_id: 'LA001',
-    created_by: '3'
-  },
-  {
-    id: 'CHI-REGION-1',
-    name: 'Downtown Chicago Region',
-    store_id: 'CHI001',
-    created_by: '4'
-  }
-];
-
-const mockStores = [
-  { Branch_Code: 'NYC001', Branch_Name: 'Manhattan Central Store' },
-  { Branch_Code: 'NYC002', Branch_Name: 'Brooklyn East Store' },
-  { Branch_Code: 'LA001', Branch_Name: 'Hollywood Store' },
-  { Branch_Code: 'CHI001', Branch_Name: 'Downtown Chicago Store' }
-];
+import { regionsAPI, storesAPI } from '../../services/api';
 
 export const RegionManagement: React.FC = () => {
-  const [regions, setRegions] = useState<Region[]>(mockRegions);
-  const [stores] = useState(mockStores);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStore, setSelectedStore] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -60,7 +27,27 @@ export const RegionManagement: React.FC = () => {
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [formData, setFormData] = useState<Partial<Region>>({});
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [regionsRes, storesRes] = await Promise.all([
+          regionsAPI.getRegions(),
+          storesAPI.getStores(),
+        ]);
+        setRegions(regionsRes.data || []);
+        setStores(storesRes.data?.stores || []);
+      } catch (err) {
+        setError('Failed to load regions data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   const filteredRegions = regions.filter(region => {
     const matchesSearch = 
@@ -93,26 +80,38 @@ export const RegionManagement: React.FC = () => {
     setShowViewModal(true);
   };
 
-  const handleSaveRegion = () => {
-    if (showEditModal && selectedRegion) {
-      setRegions(prev => prev.map(r => 
-        r.id === selectedRegion.id ? { ...formData as Region } : r
-      ));
-      setShowEditModal(false);
-    } else if (showAddModal) {
-      const newRegion: Region = {
-        ...formData as Region
-      };
-      setRegions(prev => [...prev, newRegion]);
-      setShowAddModal(false);
+  const handleSaveRegion = async () => {
+    try {
+      setLoading(true);
+      if (showEditModal && selectedRegion) {
+        await regionsAPI.updateRegion(selectedRegion.id, formData);
+        setShowEditModal(false);
+      } else if (showAddModal) {
+        await regionsAPI.createRegion(formData);
+        setShowAddModal(false);
+      }
+      const res = await regionsAPI.getRegions();
+      setRegions(res.data || []);
+    } catch (err) {
+      setError('Failed to save region. Please try again.');
+    } finally {
+      setLoading(false);
+      setFormData({});
+      setSelectedRegion(null);
     }
-    setFormData({});
-    setSelectedRegion(null);
   };
 
-  const handleDeleteRegion = (regionId: string) => {
+  const handleDeleteRegion = async (regionId: string) => {
     if (confirm('Are you sure you want to delete this region?')) {
-      setRegions(prev => prev.filter(r => r.id !== regionId));
+      try {
+        setLoading(true);
+        await regionsAPI.deleteRegion(regionId);
+        setRegions(prev => prev.filter(r => r.id !== regionId));
+      } catch (err) {
+        setError('Failed to delete region. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
