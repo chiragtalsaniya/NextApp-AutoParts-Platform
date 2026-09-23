@@ -6,9 +6,9 @@ This project is organized into three main pieces:
 
 The React application lives in the `src` directory. It is built with Vite and TypeScript. API calls are made using Axios via the helper in `src/lib/database.ts`. The base URL for requests is configured with the `VITE_API_URL` environment variable. Authentication tokens are stored in `localStorage` and sent as `Authorization` headers.
 
-## Backend (`apps/Nextapp-API`)
+## Backend (`apps/NextApp-API`)
 
-The Express API is located in `apps/Nextapp-API`. `index.js` sets up all REST endpoints under `/api/*`. It also handles security middleware, JWT authentication, and database access through MySQL. Static uploads are served from `/uploads`.
+The Express API is located in `apps/NextApp-API`. `index.js` sets up all REST endpoints under `/api/*`. It also handles security middleware, JWT authentication, and database access through MySQL. Static uploads are served from `/uploads`.
 
 ## Database (`MySQL`)
 

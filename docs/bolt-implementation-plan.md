@@ -7,7 +7,7 @@ The repository is a monorepo with these current applications:
 
 - `apps/NextApp-CRM`: React, TypeScript, and Vite administration portal
 - `apps/NextApp-Mobile`: Expo and React Native application
-- `apps/Nextapp-API`: Node.js and Express REST API
+- `apps/NextApp-API`: Node.js and Express REST API
 - `packages/shared-types`: shared TypeScript API contracts
 - `database/mysql`: authoritative MySQL initializer and schema scripts
 - `database/supabase`: historical/reference files only; not used at runtime
@@ -101,7 +101,7 @@ npm ci
 npm run build --workspace=apps/NextApp-CRM
 npm run lint --workspace=apps/NextApp-CRM
 npm run lint --workspace=apps/NextApp-Mobile
-node --check apps/Nextapp-API/index.js
+node --check apps/NextApp-API/index.js
 ```
 
 6. Produce a short report with file paths, route names, severity, and a proposed fix.
@@ -363,7 +363,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run build --workspace=apps/NextApp-CRM
-node --check apps/Nextapp-API/index.js
+node --check apps/NextApp-API/index.js
 ```
 
 Do not claim full completion if a required command is missing. Add the command or
@@ -379,7 +379,7 @@ Verify:
 - Node.js 24 is installed on the server.
 - `DEPLOY_HOST`, `DEPLOY_PORT`, `DEPLOY_USER`, and `DEPLOY_SSH_KEY` are configured.
 - The server has MySQL, Nginx, PM2, and Certbot as required.
-- `/var/www/nextapp-autoparts/apps/Nextapp-API/.env` exists only on the server.
+- `/var/www/nextapp-autoparts/apps/NextApp-API/.env` exists only on the server.
 - Nginx serves `apps/NextApp-CRM/dist` and proxies `/api/` to port 3001.
 - HTTPS works for `https://yogrind.shop`.
 - CORS accepts `https://yogrind.shop` and intended localhost origins.

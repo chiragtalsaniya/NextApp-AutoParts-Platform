@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'nextapp-api',
       script: './index.js',
-      cwd: '../Nextapp-API',
+      cwd: '../NextApp-API',
       instances: 1,
       autorestart: true,
       watch: false,

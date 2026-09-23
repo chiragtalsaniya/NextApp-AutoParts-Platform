@@ -63,7 +63,7 @@ CREATE DATABASE nextapp_crm;
 
 2. Run the database initializer from the repository root:
 ```bash
-npm run migrate --workspace=apps/Nextapp-API
+npm run migrate --workspace=apps/NextApp-API
 ```
 
 ### Backend Setup

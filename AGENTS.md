@@ -3,8 +3,8 @@
 ## Applications
 
 - `apps/NextApp-CRM`: React and TypeScript administration portal
-- `apps/Nextapp-Mobile`: Expo and React Native mobile application
-- `apps/Nextapp-API`: Node.js and Express REST API
+- `apps/NextApp-Mobile`: Expo and React Native mobile application
+- `apps/NextApp-API`: Node.js and Express REST API
 - `packages/shared-types`: Shared TypeScript API contracts
 
 ## Architecture Rules
