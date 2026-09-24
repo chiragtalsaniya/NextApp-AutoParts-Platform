@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SERVER_HOST="${DEPLOY_HOST:-173.249.33.63}"
+SERVER_HOST="${DEPLOY_HOST:-yogrind.shop}"
 SERVER_PORT="${DEPLOY_PORT:-22}"
 SERVER_USER="${DEPLOY_USER:-}"
 DEPLOY_PATH="${DEPLOY_PATH:-/var/www/nextapp-autoparts}"

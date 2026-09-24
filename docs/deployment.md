@@ -1,6 +1,6 @@
 # Linux Deployment
 
-The GitHub Actions workflow at `.github/workflows/deploy.yml` deploys the CRM build and API to `http://173.249.33.63` when changes are pushed to `main`.
+The GitHub Actions workflow at `.github/workflows/deploy.yml` deploys the CRM build and API to `http://yogrind.shop` when changes are pushed to `main`.
 
 ## GitHub secrets
 
@@ -33,7 +33,7 @@ JWT_SECRET="$(openssl rand -hex 32)" \
 ```
 
 Use a non-root SSH user with passwordless `sudo` where possible. The script
-defaults to `173.249.33.63`; override `DEPLOY_HOST`, `DEPLOY_PORT`, or
+defaults to `yogrind.shop`; override `DEPLOY_HOST`, `DEPLOY_PORT`, or
 `DEPLOY_PATH` when needed. It never commits or uploads a local `.env` file.
 
 ## Server setup
@@ -46,7 +46,7 @@ Use the values from `apps/NextApp-API/.env.example`, including a strong `JWT_SEC
 
 ```env
 NODE_ENV=production
-WEB_ORIGINS=http://173.249.33.63
+WEB_ORIGINS=http://yogrind.shop
 ```
 
 The workflow never uploads `.env` files. It creates the production API `.env`
@@ -63,7 +63,7 @@ Point the domain to the server and configure Nginx to serve the CRM build and pr
 ```nginx
 server {
     listen 80;
-    server_name 173.249.33.63;
+    server_name yogrind.shop;
 
     root /var/www/nextapp-autoparts/apps/NextApp-CRM/dist;
     index index.html;
@@ -83,7 +83,7 @@ server {
 }
 ```
 
-The deployed API health check is `http://173.249.33.63/api/health`.
+The deployed API health check is `http://yogrind.shop/api/health`.
 
 ## Local development
 
