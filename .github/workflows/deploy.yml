@@ -93,6 +93,13 @@ jobs:
           ssh -p "${{ secrets.DEPLOY_PORT || 22 }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" <<'REMOTE'
           set -e
           cd "${{ env.DEPLOY_PATH }}"
+          pwd
+          ls -la
+          ls -la apps/NextApp-API apps/NextApp-CRM packages/shared-types
+          test -f package.json
+          test -d apps/NextApp-API
+          test -f apps/NextApp-API/package.json
+          npm pkg get workspaces
           npm ci --omit=dev \
             --workspace=apps/Nextapp-API \
             --workspace=packages/shared-types \
