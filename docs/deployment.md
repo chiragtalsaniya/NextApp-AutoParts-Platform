@@ -1,6 +1,6 @@
 # Linux Deployment
 
-The GitHub Actions workflow at `.github/workflows/deploy.yml` deploys the CRM build and API to a Linux server when changes are pushed to `main`.
+The GitHub Actions workflow at `.github/workflows/deploy.yml` deploys the CRM build and API to `http://173.249.33.63` when changes are pushed to `main`.
 
 ## GitHub secrets
 
@@ -10,8 +10,31 @@ Configure these repository secrets:
 - `DEPLOY_PORT`: SSH port, usually `22`
 - `DEPLOY_USER`: deployment user
 - `DEPLOY_SSH_KEY`: private SSH key for that user
+- `DB_PASSWORD`: MySQL password for the production `nextapp_user`
+- `JWT_SECRET`: long random secret used to sign API tokens
+
+In GitHub, open **Settings -> Secrets and variables -> Actions -> New repository
+secret** and add each name/value. Use SSH key authentication for deployment;
+do not store an SSH login password in the repository or workflow.
 
 The workflow uses `/var/www/nextapp-autoparts` as the server directory. The user must be able to write there and run `npm`, `pm2`, and the database migration command.
+
+## One-command Linux deployment
+
+From the repository root, use the bootstrap script. It installs Node.js 24,
+MySQL, Nginx, PM2, configures the server, builds the CRM, uploads the API and
+CRM, runs the MySQL initializer, and starts the API with PM2:
+
+```bash
+DEPLOY_USER=root \
+DB_PASSWORD='use-a-strong-database-password' \
+JWT_SECRET="$(openssl rand -hex 32)" \
+./scripts/deploy-linux.sh
+```
+
+Use a non-root SSH user with passwordless `sudo` where possible. The script
+defaults to `173.249.33.63`; override `DEPLOY_HOST`, `DEPLOY_PORT`, or
+`DEPLOY_PATH` when needed. It never commits or uploads a local `.env` file.
 
 ## Server setup
 
@@ -23,10 +46,15 @@ Use the values from `apps/NextApp-API/.env.example`, including a strong `JWT_SEC
 
 ```env
 NODE_ENV=production
-WEB_ORIGINS=https://yogrind.shop,http://localhost:5173,http://localhost:3000,http://localhost:8081
+WEB_ORIGINS=http://173.249.33.63
 ```
 
-The workflow never uploads `.env` files. Secrets and database credentials must be created on the server separately.
+The workflow never uploads `.env` files. It creates the production API `.env`
+from `DB_PASSWORD` and `JWT_SECRET` GitHub Secrets over SSH, with file mode
+`600`.
+
+Development localhost origins are intentionally not included in the production
+allowlist. Use a separate local `.env` and local API process when developing.
 
 ## Nginx
 
@@ -35,7 +63,7 @@ Point the domain to the server and configure Nginx to serve the CRM build and pr
 ```nginx
 server {
     listen 80;
-    server_name yogrind.shop www.yogrind.shop;
+    server_name 173.249.33.63;
 
     root /var/www/nextapp-autoparts/apps/NextApp-CRM/dist;
     index index.html;
@@ -55,11 +83,11 @@ server {
 }
 ```
 
-Enable HTTPS with Certbot after DNS is working. The deployed API health check is `https://yogrind.shop/api/health`.
+The deployed API health check is `http://173.249.33.63/api/health`.
 
 ## Local development
 
-The API accepts the configured localhost origins. Start all applications from the repository root with:
+Start the local API and applications separately with:
 
 ```bash
 npm run dev:all

@@ -52,12 +52,10 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // CORS configuration
-const allowedOrigins = (process.env.WEB_ORIGINS || process.env.CORS_ORIGIN || [
-  'https://yogrind.shop',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:8081'
-].join(',')).split(',').map((origin) => origin.trim()).filter(Boolean);
+const allowedOrigins = (process.env.WEB_ORIGINS || 'http://173.249.33.63')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {

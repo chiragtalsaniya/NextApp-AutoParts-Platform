@@ -42,7 +42,7 @@ jobs:
 
       - name: Build CRM
         env:
-          VITE_API_URL: https://yogrind.shop/api
+          VITE_API_URL: http://173.249.33.63/api
           VITE_APP_NAME: NextApp Auto Parts CMS
           VITE_APP_VERSION: ${{ github.sha }}
         run: npm run build --workspace=apps/NextApp-CRM
@@ -72,6 +72,21 @@ jobs:
             --exclude 'apps/NextApp-Mobile/' \
             ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_PATH }}/"
 
+      - name: Configure production environment
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DB_PASSWORD" ] || [ -z "$JWT_SECRET" ]; then
+            echo "DB_PASSWORD and JWT_SECRET GitHub Secrets are required."
+            exit 1
+          fi
+
+          env_payload="$(printf 'NODE_ENV=production\nPORT=3001\nDB_HOST=127.0.0.1\nDB_PORT=3306\nDB_NAME=nextapp_crm\nDB_USER=nextapp_user\nDB_PASSWORD=%s\nJWT_SECRET=%s\nWEB_ORIGINS=http://173.249.33.63\n' "$DB_PASSWORD" "$JWT_SECRET" | base64 -w 0)"
+          ssh -p "${{ secrets.DEPLOY_PORT || 22 }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "mkdir -p '${{ env.DEPLOY_PATH }}/apps/NextApp-API' && echo '$env_payload' | base64 -d > '${{ env.DEPLOY_PATH }}/apps/NextApp-API/.env' && chmod 600 '${{ env.DEPLOY_PATH }}/apps/NextApp-API/.env'"
+
       - name: Install production dependencies and restart API
         run: |
           ssh -p "${{ secrets.DEPLOY_PORT || 22 }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" <<'REMOTE'
@@ -91,4 +106,4 @@ jobs:
           REMOTE
 
       - name: Check deployed API
-        run: curl --fail --silent --show-error https://yogrind.shop/api/health
+        run: curl --fail --silent --show-error http://173.249.33.63/api/health
