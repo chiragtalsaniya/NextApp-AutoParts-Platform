@@ -46,7 +46,7 @@ Use the values from `apps/NextApp-API/.env.example`, including a strong `JWT_SEC
 
 ```env
 NODE_ENV=production
-WEB_ORIGINS=http://yogrind.shop
+WEB_ORIGINS=https://yogrind.shop
 ```
 
 The workflow never uploads `.env` files. It creates the production API `.env`

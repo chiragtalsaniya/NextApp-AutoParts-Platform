@@ -43,7 +43,7 @@ jobs:
 
       - name: Build CRM
         env:
-          VITE_API_URL: http://yogrind.shop/api
+          VITE_API_URL: https://yogrind.shop/api
           VITE_APP_NAME: NextApp Auto Parts CMS
           VITE_APP_VERSION: ${{ github.sha }}
         run: npm run build --workspace=apps/NextApp-CRM
