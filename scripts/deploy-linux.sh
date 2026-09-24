@@ -73,9 +73,9 @@ GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 SQL
 
-mkdir -p "${DEPLOY_PATH}/apps/NextApp-API"
-printf '%s' "${ENV_PAYLOAD}" | base64 -d > "${DEPLOY_PATH}/apps/NextApp-API/.env"
-chmod 600 "${DEPLOY_PATH}/apps/NextApp-API/.env"
+mkdir -p "${DEPLOY_PATH}/apps/Nextapp-API"
+printf '%s' "${ENV_PAYLOAD}" | base64 -d > "${DEPLOY_PATH}/apps/Nextapp-API/.env"
+chmod 600 "${DEPLOY_PATH}/apps/Nextapp-API/.env"
 
 sudo -n tee /etc/nginx/sites-available/nextapp-autoparts >/dev/null <<NGINX
 server {
@@ -108,7 +108,7 @@ REMOTE_CONFIG
 
 # Build on the current machine, then upload only server-required application files.
 cd "${ROOT_DIR}"
-npm ci --workspace=apps/NextApp-CRM --workspace=apps/NextApp-API --workspace=packages/shared-types --include-workspace-root
+npm ci --workspace=apps/NextApp-CRM --workspace=apps/Nextapp-API --workspace=packages/shared-types --include-workspace-root
 VITE_API_URL="${SERVER_ORIGIN}/api" \
   npm run build --workspace=apps/NextApp-CRM
 
@@ -118,19 +118,19 @@ rsync "${rsync_opts[@]}" \
   --exclude 'node_modules/' \
   --exclude '.env' \
   --exclude '.env.*' \
-  --exclude 'apps/NextApp-Mobile/' \
+  --exclude 'apps/Nextapp-Mobile/' \
   "${ROOT_DIR}/" "${SSH_TARGET}:${DEPLOY_PATH}/"
 
 ssh "${ssh_opts[@]}" "${SSH_TARGET}" "DEPLOY_PATH='${DEPLOY_PATH}' bash -s" <<'REMOTE_DEPLOY'
 set -Eeuo pipefail
 cd "${DEPLOY_PATH}"
-npm ci --omit=dev --workspace=apps/NextApp-API --workspace=packages/shared-types --include-workspace-root
-npm run migrate --workspace=apps/NextApp-API
+npm ci --omit=dev --workspace=apps/Nextapp-API --workspace=packages/shared-types --include-workspace-root
+npm run migrate --workspace=apps/Nextapp-API
 
 if pm2 describe nextapp-api >/dev/null 2>&1; then
   pm2 restart nextapp-api --update-env
 else
-  pm2 start apps/NextApp-API/index.js --name nextapp-api --update-env
+  pm2 start apps/Nextapp-API/index.js --name nextapp-api --update-env
 fi
 pm2 save
 curl --fail --silent --show-error http://127.0.0.1:3001/api/health

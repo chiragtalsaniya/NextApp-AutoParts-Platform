@@ -31,7 +31,7 @@ jobs:
         run: >-
           npm ci
           --workspace=apps/NextApp-CRM
-          --workspace=apps/NextApp-API
+          --workspace=apps/Nextapp-API
           --workspace=packages/shared-types
           --include-workspace-root
 
@@ -70,7 +70,7 @@ jobs:
             --exclude 'node_modules/' \
             --exclude '.env' \
             --exclude '.env.*' \
-            --exclude 'apps/NextApp-Mobile/' \
+            --exclude 'apps/Nextapp-Mobile/' \
             ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_PATH }}/"
 
       - name: Configure production environment
@@ -86,7 +86,7 @@ jobs:
 
           env_payload="$(printf 'NODE_ENV=production\nPORT=3001\nDB_HOST=127.0.0.1\nDB_PORT=3306\nDB_NAME=nextapp_crm\nDB_USER=nextapp_user\nDB_PASSWORD=%s\nJWT_SECRET=%s\nWEB_ORIGINS=http://yogrind.shop\n' "$DB_PASSWORD" "$JWT_SECRET" | base64 -w 0)"
           ssh -p "${{ secrets.DEPLOY_PORT || 22 }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "mkdir -p '${{ env.DEPLOY_PATH }}/apps/NextApp-API' && echo '$env_payload' | base64 -d > '${{ env.DEPLOY_PATH }}/apps/NextApp-API/.env' && chmod 600 '${{ env.DEPLOY_PATH }}/apps/NextApp-API/.env'"
+            "mkdir -p '${{ env.DEPLOY_PATH }}/apps/Nextapp-API' && echo '$env_payload' | base64 -d > '${{ env.DEPLOY_PATH }}/apps/Nextapp-API/.env' && chmod 600 '${{ env.DEPLOY_PATH }}/apps/Nextapp-API/.env'"
 
       - name: Install production dependencies and restart API
         run: |
@@ -94,14 +94,14 @@ jobs:
           set -e
           cd "${{ env.DEPLOY_PATH }}"
           npm ci --omit=dev \
-            --workspace=apps/NextApp-API \
+            --workspace=apps/Nextapp-API \
             --workspace=packages/shared-types \
             --include-workspace-root
-          npm run migrate --workspace=apps/NextApp-API
+          npm run migrate --workspace=apps/Nextapp-API
           if pm2 describe nextapp-api >/dev/null 2>&1; then
             pm2 restart nextapp-api --update-env
           else
-            pm2 start apps/NextApp-API/index.js --name nextapp-api --update-env
+            pm2 start apps/Nextapp-API/index.js --name nextapp-api --update-env
           fi
           pm2 save
           REMOTE
