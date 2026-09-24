@@ -28,6 +28,7 @@ import { useAuth } from '../../context/AuthContext';
 import { NewOrderFormModal } from './NewOrderForm';
 import { ordersAPI } from '../../services/api';
 import * as XLSX from 'xlsx';
+import { ORDER_STATUS_TRANSITIONS } from '@nextapp/shared-types';
 
 export const OrderManagement: React.FC = () => {
   const { user, canAccessStore, getAccessibleStores, getAccessibleRetailers } = useAuth();
@@ -47,20 +48,6 @@ export const OrderManagement: React.FC = () => {
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-
-  // The workflow steps an order moves through, in order
-  const statusWorkflow: OrderStatus[] = ['New', 'Pending', 'Processing', 'Hold', 'Picked', 'Dispatched', 'Completed', 'Cancelled'];
-
-  const allowedTransitions: Record<string, OrderStatus[]> = {
-    New: ['Pending', 'Processing', 'Hold', 'Cancelled'],
-    Pending: ['Processing', 'Hold', 'Cancelled'],
-    Processing: ['Picked', 'Hold', 'Cancelled'],
-    Hold: ['Pending', 'Processing', 'Cancelled'],
-    Picked: ['Dispatched', 'Hold'],
-    Dispatched: ['Completed'],
-    Completed: [],
-    Cancelled: [],
-  };
 
   // Load orders from API
   useEffect(() => {
@@ -505,7 +492,7 @@ export const OrderManagement: React.FC = () => {
               {canUpdateStatus && selectedOrder && (
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">Move to:</span>
-                  {(allowedTransitions[selectedOrder.Order_Status as string] || []).map(nextStatus => (
+                  {(ORDER_STATUS_TRANSITIONS[selectedOrder.Order_Status as keyof typeof ORDER_STATUS_TRANSITIONS] || []).map(nextStatus => (
                     <button
                       key={nextStatus}
                       onClick={() => handleUpdateOrderStatus(nextStatus)}
@@ -521,7 +508,7 @@ export const OrderManagement: React.FC = () => {
                       {nextStatus}
                     </button>
                   ))}
-                  {(allowedTransitions[selectedOrder.Order_Status as string] || []).length === 0 && (
+                  {(ORDER_STATUS_TRANSITIONS[selectedOrder.Order_Status as keyof typeof ORDER_STATUS_TRANSITIONS] || []).length === 0 && (
                     <span className="text-sm text-gray-500 italic">
                       This order is {selectedOrder.Order_Status} and can no longer be changed
                     </span>
