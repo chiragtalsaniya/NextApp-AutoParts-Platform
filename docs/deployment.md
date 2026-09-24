@@ -1,6 +1,6 @@
 # Linux Deployment
 
-The GitHub Actions workflow at `.github/workflows/deploy.yml` deploys the CRM build and API to `http://yogrind.shop` when changes are pushed to `main`.
+The GitHub Actions workflow at `.github/workflows/deploy.yml` deploys the CRM build and API to `https://yogrind.shop` when changes are pushed to `main`.
 
 ## GitHub secrets
 
@@ -83,7 +83,7 @@ server {
 }
 ```
 
-The deployed API health check is `http://yogrind.shop/api/health`.
+The deployed API health check is `https://yogrind.shop/api/health`.
 
 ## Local development
 

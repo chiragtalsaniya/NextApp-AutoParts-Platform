@@ -84,7 +84,7 @@ jobs:
             exit 1
           fi
 
-          env_payload="$(printf 'NODE_ENV=production\nPORT=3001\nDB_HOST=127.0.0.1\nDB_PORT=3306\nDB_NAME=nextapp_crm\nDB_USER=nextapp_user\nDB_PASSWORD=%s\nJWT_SECRET=%s\nWEB_ORIGINS=http://yogrind.shop\n' "$DB_PASSWORD" "$JWT_SECRET" | base64 -w 0)"
+          env_payload="$(printf 'NODE_ENV=production\nPORT=3001\nDB_HOST=127.0.0.1\nDB_PORT=3306\nDB_NAME=nextapp_crm\nDB_USER=nextapp_user\nDB_PASSWORD=%s\nJWT_SECRET=%s\nWEB_ORIGINS=https://yogrind.shop\n' "$DB_PASSWORD" "$JWT_SECRET" | base64 -w 0)"
           ssh -p "${{ secrets.DEPLOY_PORT || 22 }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
             "mkdir -p '${{ env.DEPLOY_PATH }}/apps/NextApp-API' && echo '$env_payload' | base64 -d > '${{ env.DEPLOY_PATH }}/apps/NextApp-API/.env' && chmod 600 '${{ env.DEPLOY_PATH }}/apps/NextApp-API/.env'"
 
@@ -114,4 +114,4 @@ jobs:
           REMOTE
 
       - name: Check deployed API
-        run: curl --fail --silent --show-error http://yogrind.shop/api/health
+        run: curl --fail --silent --show-error https://yogrind.shop/api/health
