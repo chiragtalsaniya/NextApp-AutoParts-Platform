@@ -146,6 +146,9 @@ export interface OrderMaster {
   Delivered_Date?: number; // decimal timestamp
   Order_Status?: OrderStatus;
   Branch?: string; // Store branch code
+  Branch_Name?: string;
+  Retailer_Name?: string;
+  items?: OrderItem[];
   DispatchId?: number;
   Remark?: string;
   PO_Number?: string;

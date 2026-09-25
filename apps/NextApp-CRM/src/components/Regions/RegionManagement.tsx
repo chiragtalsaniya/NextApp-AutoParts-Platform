@@ -17,7 +17,6 @@ import { regionsAPI, storesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export const RegionManagement: React.FC = () => {
-  const { user } = useAuth();
   const [regions, setRegions] = useState<Region[]>([]);
   const [stores, setStores] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -453,21 +452,9 @@ export const RegionManagement: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <RegionFormModal 
-        isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
-        title="Add New Region" 
-      />
-      <RegionFormModal 
-        isOpen={showEditModal} 
-        onClose={() => setShowEditModal(false)} 
-        title="Edit Region" 
-      />
-      <RegionViewModal 
-        isOpen={showViewModal} 
-        onClose={() => setShowViewModal(false)} 
-        region={selectedRegion} 
-      />
+      {RegionFormModal({ isOpen: showAddModal, onClose: () => setShowAddModal(false), title: 'Add New Region' })}
+      {RegionFormModal({ isOpen: showEditModal, onClose: () => setShowEditModal(false), title: 'Edit Region' })}
+      {RegionViewModal({ isOpen: showViewModal, onClose: () => setShowViewModal(false), region: selectedRegion })}
 
       {error && (
         <div className="min-h-screen flex items-center justify-center">

@@ -982,21 +982,9 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
       )}
 
       {/* Modals */}
-      <PartFormModal 
-        isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
-        title="Add New Part" 
-      />
-      <PartFormModal 
-        isOpen={showEditModal} 
-        onClose={() => setShowEditModal(false)} 
-        title="Edit Part" 
-      />
-      <PartViewModal 
-        isOpen={showViewModal} 
-        onClose={() => setShowViewModal(false)} 
-        part={selectedPart} 
-      />
+      {PartFormModal({ isOpen: showAddModal, onClose: () => setShowAddModal(false), title: 'Add New Part' })}
+      {PartFormModal({ isOpen: showEditModal, onClose: () => setShowEditModal(false), title: 'Edit Part' })}
+      {PartViewModal({ isOpen: showViewModal, onClose: () => setShowViewModal(false), part: selectedPart })}
     </div>
   );
 };

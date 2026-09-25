@@ -5,10 +5,7 @@ import {
   Truck, 
   CheckCircle, 
   Clock, 
-  AlertTriangle, 
-  Shield, 
   Plus,
-  Edit,
   Package,
   PauseCircle,
   XCircle,
@@ -16,13 +13,10 @@ import {
   Filter,
   Download,
   Upload,
-  Calendar,
-  User,
   MapPin,
-  FileText,
   Zap
 } from 'lucide-react';
-import { OrderMaster, OrderItem, OrderStatus, NewOrderForm, getOrderStatusColor, timestampToDate, formatCurrency, dateToTimestamp } from '../../types';
+import { OrderMaster, OrderItem, OrderStatus, NewOrderForm, getOrderStatusColor, timestampToDate, formatCurrency } from '../../types';
 import { format } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
 import { NewOrderFormModal } from './NewOrderForm';
@@ -31,7 +25,7 @@ import * as XLSX from 'xlsx';
 import { ORDER_STATUS_TRANSITIONS } from '@nextapp/shared-types';
 
 export const OrderManagement: React.FC = () => {
-  const { user, canAccessStore, getAccessibleStores, getAccessibleRetailers } = useAuth();
+  const { user } = useAuth();
   const canCreateOrder = ['admin', 'manager', 'storeman', 'salesman'].includes(user?.role || '');
   const canUpdateStatus = ['admin', 'manager', 'storeman'].includes(user?.role || '');
   const [orders, setOrders] = useState<OrderMaster[]>([]);
@@ -194,7 +188,7 @@ export const OrderManagement: React.FC = () => {
   const handleNewOrder = async (orderData: NewOrderForm) => {
     try {
       setLoading(true);
-      const response = await ordersAPI.createOrder(orderData);
+      await ordersAPI.createOrder(orderData);
       
       // Refresh orders list
       const params: any = { page: currentPage, limit: 50 };
@@ -252,11 +246,6 @@ export const OrderManagement: React.FC = () => {
 
   const getOrderItems = (orderId: number) => {
     return orderItemsMap[orderId] || [];
-  };
-
-  const calculateOrderTotal = (orderId: number) => {
-    const items = getOrderItems(orderId);
-    return items.reduce((total, item) => total + (item.ItemAmount || 0), 0);
   };
 
   const getPageTitle = () => {
@@ -796,7 +785,7 @@ export const OrderManagement: React.FC = () => {
       )}
 
       {/* Order Details Modal */}
-      <OrderDetailsModal />
+      {OrderDetailsModal()}
 
       {/* New Order Form Modal */}
       <NewOrderFormModal 

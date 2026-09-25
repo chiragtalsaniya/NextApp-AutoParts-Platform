@@ -805,21 +805,9 @@ export const StoreManagement: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <StoreFormModal 
-        isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
-        title="Add New Store" 
-      />
-      <StoreFormModal 
-        isOpen={showEditModal} 
-        onClose={() => setShowEditModal(false)} 
-        title="Edit Store" 
-      />
-      <StoreViewModal 
-        isOpen={showViewModal} 
-        onClose={() => setShowViewModal(false)} 
-        store={selectedStore} 
-      />
+      {StoreFormModal({ isOpen: showAddModal, onClose: () => setShowAddModal(false), title: 'Add New Store' })}
+      {StoreFormModal({ isOpen: showEditModal, onClose: () => setShowEditModal(false), title: 'Edit Store' })}
+      {StoreViewModal({ isOpen: showViewModal, onClose: () => setShowViewModal(false), store: selectedStore })}
     </div>
   );
 };

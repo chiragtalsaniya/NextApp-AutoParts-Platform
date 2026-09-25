@@ -854,21 +854,9 @@ export const UserManagement: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <UserFormModal 
-        isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
-        title="Add New User" 
-      />
-      <UserFormModal 
-        isOpen={showEditModal} 
-        onClose={() => setShowEditModal(false)} 
-        title="Edit User" 
-      />
-      <UserViewModal 
-        isOpen={showViewModal} 
-        onClose={() => setShowViewModal(false)} 
-        user={selectedUser} 
-      />
+      {UserFormModal({ isOpen: showAddModal, onClose: () => setShowAddModal(false), title: 'Add New User' })}
+      {UserFormModal({ isOpen: showEditModal, onClose: () => setShowEditModal(false), title: 'Edit User' })}
+      {UserViewModal({ isOpen: showViewModal, onClose: () => setShowViewModal(false), user: selectedUser })}
 
       {error && (
         <div className="min-h-screen flex items-center justify-center">

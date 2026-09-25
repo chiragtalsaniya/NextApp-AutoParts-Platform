@@ -828,8 +828,8 @@ export const ItemStatusManagement: React.FC = () => {
       )}
 
       {/* Modals */}
-      <ItemEditModal />
-      <ItemViewModal />
+      {ItemEditModal()}
+      {ItemViewModal()}
     </div>
   );
 };

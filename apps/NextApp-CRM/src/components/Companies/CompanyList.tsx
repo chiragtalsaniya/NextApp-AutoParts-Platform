@@ -520,21 +520,9 @@ export const CompanyList: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <CompanyFormModal 
-        isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
-        title="Add New Company" 
-      />
-      <CompanyFormModal 
-        isOpen={showEditModal} 
-        onClose={() => setShowEditModal(false)} 
-        title="Edit Company" 
-      />
-      <CompanyViewModal 
-        isOpen={showViewModal} 
-        onClose={() => setShowViewModal(false)} 
-        company={selectedCompany} 
-      />
+      {CompanyFormModal({ isOpen: showAddModal, onClose: () => setShowAddModal(false), title: 'Add New Company' })}
+      {CompanyFormModal({ isOpen: showEditModal, onClose: () => setShowEditModal(false), title: 'Edit Company' })}
+      {CompanyViewModal({ isOpen: showViewModal, onClose: () => setShowViewModal(false), company: selectedCompany })}
 
       {error && (
         <div className="min-h-screen flex items-center justify-center">

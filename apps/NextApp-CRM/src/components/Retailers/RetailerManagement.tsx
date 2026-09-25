@@ -937,21 +937,9 @@ export const RetailerManagement: React.FC = () => {
       )}
 
       {/* Modals */}
-      <RetailerFormModal 
-        isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
-        title="Add New Retailer" 
-      />
-      <RetailerFormModal 
-        isOpen={showEditModal} 
-        onClose={() => setShowEditModal(false)} 
-        title="Edit Retailer" 
-      />
-      <RetailerViewModal 
-        isOpen={showViewModal} 
-        onClose={() => setShowViewModal(false)} 
-        retailer={selectedRetailer} 
-      />
+      {RetailerFormModal({ isOpen: showAddModal, onClose: () => setShowAddModal(false), title: 'Add New Retailer' })}
+      {RetailerFormModal({ isOpen: showEditModal, onClose: () => setShowEditModal(false), title: 'Edit Retailer' })}
+      {RetailerViewModal({ isOpen: showViewModal, onClose: () => setShowViewModal(false), retailer: selectedRetailer })}
     </div>
   );
 };
