@@ -8,18 +8,13 @@ import {
   Phone, 
   Mail, 
   MapPin,
-  Store,
   Eye,
   X,
   Upload,
   Download,
   Filter,
-  Building2,
   CreditCard,
   Globe,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
   Image as ImageIcon,
   User,
   Hash,
@@ -47,6 +42,20 @@ export const RetailerManagement: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
+
+  const retailerTypes = [
+    { id: 1, name: 'Premium' },
+    { id: 2, name: 'Standard' },
+    { id: 3, name: 'Basic' },
+  ];
+
+  const areas = Array.from(
+    new Map(
+      retailers
+        .filter((retailer): retailer is Retailer & { Area_Id: number } => typeof retailer.Area_Id === 'number')
+        .map((retailer) => [retailer.Area_Id, { id: retailer.Area_Id, name: retailer.Area_Name || `Area ${retailer.Area_Id}` }]),
+    ).values(),
+  );
 
   // Load retailers from API
   useEffect(() => {
@@ -172,13 +181,24 @@ export const RetailerManagement: React.FC = () => {
     }
   };
 
-  const getAreaName = (areaId?: number) => {
-    const retailer = retailers.find(r => r.Area_Id === areaId);
-    return retailer?.Area_Name || 'N/A';
-  };
-
-  const getRetailerTypeName = (typeId?: number) => {
-    return typeId === 1 ? 'Premium' : typeId === 2 ? 'Standard' : 'Basic';
+  const handleExport = () => {
+    const rows = [
+      ['Retailer ID', 'Name', 'Contact Person', 'Email', 'Mobile', 'Area', 'Status', 'Credit Limit'],
+      ...filteredRetailers.map((retailer) => [
+        retailer.Retailer_Id,
+        retailer.Retailer_Name || '',
+        retailer.Contact_Person || '',
+        retailer.Retailer_Email || '',
+        retailer.Retailer_Mobile || '',
+        retailer.Area_Name || '',
+        getStatusText(retailer.Retailer_Status),
+        retailer.Credit_Limit || 0,
+      ]),
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Retailers');
+    XLSX.writeFile(workbook, `retailers-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
   const getStatusColor = (status?: number) => {
