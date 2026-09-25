@@ -9,6 +9,8 @@ interface NewOrderFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (order: NewOrderForm) => void;
+  initialData?: NewOrderForm;
+  isEdit?: boolean;
 }
 
 interface ValidationErrors {
@@ -24,7 +26,7 @@ interface DuplicateItemConfirmation {
   newPart: Part;
 }
 
-export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose, onSubmit }) => {
+export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose, onSubmit, initialData, isEdit = false }) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState<NewOrderForm>({
     retailer_id: 0,
@@ -56,6 +58,13 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
     };
     loadRetailers();
   }, []);
+
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setFormData(initialData);
+      setValidationErrors({});
+    }
+  }, [isOpen, initialData]);
 
   useEffect(() => {
     if (formData.retailer_id) {
@@ -296,7 +305,7 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
                   <ShoppingCart className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Create New Order</h2>
+                  <h2 className="text-xl font-bold text-gray-900">{isEdit ? 'Edit Order' : 'Create New Order'}</h2>
                   <p className="text-gray-600">Add items and configure order details</p>
                 </div>
               </div>
@@ -603,7 +612,7 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
                 className="px-6 py-3 bg-[#003366] text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2"
               >
                 <Save className="w-5 h-5" />
-                <span>Create Order</span>
+                <span>{isEdit ? 'Save Changes' : 'Create Order'}</span>
               </button>
             </div>
           </form>

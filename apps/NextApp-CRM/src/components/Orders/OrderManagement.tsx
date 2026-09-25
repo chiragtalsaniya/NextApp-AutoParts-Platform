@@ -42,6 +42,7 @@ export const OrderManagement: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<OrderMaster | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showNewOrderForm, setShowNewOrderForm] = useState(false);
+  const [showEditOrderForm, setShowEditOrderForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -212,6 +213,42 @@ export const OrderManagement: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const handleEditOrder = async (orderData: NewOrderForm) => {
+    if (!selectedOrder) return;
+    try {
+      setLoading(true);
+      await ordersAPI.updateOrder(selectedOrder.Order_Id, orderData);
+      setShowEditOrderForm(false);
+      const response = await ordersAPI.getOrder(selectedOrder.Order_Id);
+      setSelectedOrder(response.data);
+      setOrders((current) => current.map((order) =>
+        order.Order_Id === selectedOrder.Order_Id ? response.data : order,
+      ));
+    } catch (err: any) {
+      setStatusUpdateError(err?.response?.data?.error || 'Failed to update order. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const editableOrderData = selectedOrder ? {
+    retailer_id: selectedOrder.Retailer_Id || 0,
+    po_number: selectedOrder.PO_Number || '',
+    po_date: selectedOrder.PO_Date ? new Date(selectedOrder.PO_Date) : new Date(),
+    urgent: Boolean(selectedOrder.Urgent_Status),
+    remark: selectedOrder.Remark || '',
+    items: (selectedOrder.items || []).map((item) => ({
+      part_number: item.Part_Admin || '',
+      part_name: item.Part_Salesman || '',
+      quantity: item.Order_Qty || 1,
+      mrp: item.MRP || 0,
+      basic_discount: item.Discount || 0,
+      scheme_discount: item.SchemeDisc || 0,
+      additional_discount: item.AdditionalDisc || 0,
+      urgent: Boolean(item.Urgent_Status),
+    })),
+  } : undefined;
 
   const getOrderItems = (orderId: number) => {
     return orderItemsMap[orderId] || [];
@@ -515,6 +552,14 @@ export const OrderManagement: React.FC = () => {
                   )}
                 </div>
               )}
+              {canCreateOrder && selectedOrder && ['New', 'Pending', 'Processing'].includes(selectedOrder.Order_Status || '') && (
+                <button
+                  onClick={() => setShowEditOrderForm(true)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-white hover:bg-gray-900"
+                >
+                  Edit Order
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -758,6 +803,13 @@ export const OrderManagement: React.FC = () => {
         isOpen={showNewOrderForm}
         onClose={() => setShowNewOrderForm(false)}
         onSubmit={handleNewOrder}
+      />
+      <NewOrderFormModal
+        isOpen={showEditOrderForm}
+        onClose={() => setShowEditOrderForm(false)}
+        onSubmit={handleEditOrder}
+        initialData={editableOrderData}
+        isEdit
       />
     </div>
   );

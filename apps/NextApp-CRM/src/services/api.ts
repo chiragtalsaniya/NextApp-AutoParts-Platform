@@ -175,6 +175,9 @@ export const ordersAPI = {
   
   createOrder: (orderData: any) => 
     api.post('/orders', orderData),
+
+  updateOrder: (id: number, orderData: any) =>
+    api.put(`/orders/${id}`, orderData),
   
   updateOrderStatus: (id: number, statusData: any) => 
     api.patch(`/orders/${id}/status`, statusData),

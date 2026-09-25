@@ -348,6 +348,66 @@ router.post('/',
 );
 
 // Update order status
+router.put('/:id',
+  authenticateToken,
+  authorizeRoles('admin', 'manager', 'storeman', 'salesman'),
+  validateRequest(orderCreateSchema),
+  async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+      const orderId = req.params.id;
+      const { retailer_id, po_number, urgent, remark, items } = req.body;
+      const [orders] = await connection.execute(
+        'SELECT Order_Status, Branch FROM order_master WHERE Order_Id = ?',
+        [orderId],
+      );
+
+      if (orders.length === 0) return res.status(404).json({ error: 'Order not found' });
+      if (!['New', 'Pending', 'Processing'].includes(orders[0].Order_Status)) {
+        return res.status(409).json({ error: 'Only new, pending, or processing orders can be edited' });
+      }
+      if (req.user.role !== 'super_admin' && req.user.store_id && orders[0].Branch !== req.user.store_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      await connection.beginTransaction();
+      await connection.execute(
+        `UPDATE order_master
+         SET Retailer_Id = ?, PO_Number = ?, Urgent_Status = ?, Remark = ?, Last_Sync = ?
+         WHERE Order_Id = ?`,
+        [retailer_id, po_number || null, urgent ? 1 : 0, remark || null, Date.now(), orderId],
+      );
+      await connection.execute('DELETE FROM order_items WHERE Order_Id = ?', [orderId]);
+
+      for (const [index, item] of items.entries()) {
+        const itemAmount = Math.round(
+          item.mrp * item.quantity * (1 - ((item.basic_discount || 0) + (item.scheme_discount || 0) + (item.additional_discount || 0)) / 100),
+        );
+        await connection.execute(
+          `INSERT INTO order_items
+           (Order_Id, Order_Srl, Part_Admin, Part_Salesman, Order_Qty, Dispatch_Qty,
+            OrderItemStatus, PlaceDate, RetailerId, ItemAmount, SchemeDisc,
+            AdditionalDisc, Discount, MRP, FirstOrderDate, Urgent_Status, Last_Sync)
+           VALUES (?, ?, ?, ?, ?, 0, 'New', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [orderId, index + 1, item.part_number, item.part_name || item.part_number,
+            item.quantity, Date.now(), retailer_id, itemAmount,
+            item.scheme_discount || 0, item.additional_discount || 0,
+            item.basic_discount || 0, item.mrp, Date.now(), item.urgent ? 1 : 0, Date.now()],
+        );
+      }
+
+      await connection.commit();
+      res.json({ message: 'Order updated successfully' });
+    } catch (error) {
+      await connection.rollback();
+      console.error('Update order error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    } finally {
+      connection.release();
+    }
+  }
+);
+
 router.patch('/:id/status',
   authenticateToken,
   authorizeRoles('admin', 'manager', 'storeman'),
