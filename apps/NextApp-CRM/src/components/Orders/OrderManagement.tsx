@@ -188,7 +188,7 @@ export const OrderManagement: React.FC = () => {
     }
   };
 
-  const handleNewOrder = async (orderData: NewOrderForm) => {
+  const handleNewOrder = async (orderData: NewOrderForm): Promise<void> => {
     try {
       setLoading(true);
       await ordersAPI.createOrder(orderData);
@@ -202,16 +202,16 @@ export const OrderManagement: React.FC = () => {
       setPagination(ordersResponse.data.pagination || { page: 1, limit: 50, total: 0, pages: 0 });
       
       setShowNewOrderForm(false);
-      alert('Order created successfully!');
-    } catch (err) {
+      setModalError(null);
+    } catch (err: any) {
       console.error('Failed to create order:', err);
-      alert('Failed to create order. Please try again.');
+      setModalError(err?.response?.data?.error || 'Failed to create order. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditOrder = async (orderData: NewOrderForm) => {
+  const handleEditOrder = async (orderData: NewOrderForm): Promise<void> => {
     if (!selectedOrder) return;
     try {
       setLoading(true);

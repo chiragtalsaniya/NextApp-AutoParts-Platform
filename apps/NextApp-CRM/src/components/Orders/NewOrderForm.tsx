@@ -8,7 +8,7 @@ import { retailersAPI } from '../../services/api';
 interface NewOrderFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (order: NewOrderForm) => void;
+  onSubmit: (order: NewOrderForm) => Promise<void>;
   initialData?: NewOrderForm;
   isEdit?: boolean;
   errorMessage?: string | null;
@@ -258,7 +258,7 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
     return formData.items.reduce((total, item) => total + calculateItemTotal(item), 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -266,7 +266,7 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
     }
 
     try {
-      onSubmit(formData);
+      await onSubmit(formData);
       resetForm();
       onClose();
     } catch (error) {

@@ -272,7 +272,7 @@ router.post('/',
       const orderItemQueries = items.map((item, index) => {
         const itemAmount = Math.round(
           item.mrp * item.quantity *
-          (1 - (item.basic_discount + item.scheme_discount + item.additional_discount) / 100)
+          (1 - ((item.basic_discount || 0) + (item.scheme_discount || 0) + (item.additional_discount || 0)) / 100)
         );
 
         return {
