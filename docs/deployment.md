@@ -77,6 +77,16 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        try_files $uri =404;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }
