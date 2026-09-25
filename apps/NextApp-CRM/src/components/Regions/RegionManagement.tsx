@@ -39,7 +39,7 @@ export const RegionManagement: React.FC = () => {
           regionsAPI.getRegions(),
           storesAPI.getStores(),
         ]);
-        setRegions(regionsRes.data || []);
+        setRegions(regionsRes.data?.regions || regionsRes.data || []);
         setStores(storesRes.data?.stores || []);
       } catch (err) {
         setError('Failed to load regions data. Please try again.');
@@ -91,7 +91,7 @@ export const RegionManagement: React.FC = () => {
         setShowAddModal(false);
       }
       const res = await regionsAPI.getRegions();
-      setRegions(res.data || []);
+      setRegions(res.data?.regions || res.data || []);
     } catch (err) {
       setError('Failed to save region. Please try again.');
     } finally {

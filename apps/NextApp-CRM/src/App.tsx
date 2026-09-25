@@ -70,7 +70,7 @@ const AppRoutes: React.FC = () => {
       } />
       
       <Route path="/retailers" element={
-        <ProtectedRoute allowedRoles={['super_admin', 'admin', 'manager', 'storeman', 'salesman']}>
+        <ProtectedRoute allowedRoles={['super_admin', 'admin', 'manager', 'storeman', 'salesman', 'retailer']}>
           <DashboardLayout>
             <Retailers />
           </DashboardLayout>
