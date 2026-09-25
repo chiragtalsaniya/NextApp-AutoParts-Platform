@@ -1,19 +1,13 @@
 import React, { useState } from 'react';
 import { Save, Palette, Monitor, Sun, Moon } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext';
+import { AppearanceSettings as AppearanceSettingsType, useTheme } from '../../context/ThemeContext';
 
 export const AppearanceSettings: React.FC = () => {
-  const [settings, setSettings] = useState({
-    theme: 'light',
-    primaryColor: '#003366',
-    fontSize: 'medium',
-    compactMode: false,
-    showAnimations: true,
-    language: 'en'
-  });
+  const { theme, setTheme, appearance, setAppearance } = useTheme();
+  const [settings, setSettings] = useState<AppearanceSettingsType>(appearance);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const { theme, setTheme } = useTheme();
+  React.useEffect(() => setSettings(appearance), [appearance]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +15,7 @@ export const AppearanceSettings: React.FC = () => {
     setMessage('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      setAppearance(settings);
       setMessage('Appearance settings updated successfully!');
     } catch (error) {
       setMessage('Failed to update appearance settings. Please try again.');
@@ -36,6 +30,9 @@ export const AppearanceSettings: React.FC = () => {
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
+    if (name === 'primaryColor' || name === 'fontSize' || name === 'language' || name === 'compactMode' || name === 'showAnimations') {
+      setAppearance({ [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value } as Partial<AppearanceSettingsType>);
+    }
   };
 
   const colorOptions = [

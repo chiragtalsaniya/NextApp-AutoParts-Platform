@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary-color: #003366;
+}
+
+[data-font-size='small'] { font-size: 14px; }
+[data-font-size='medium'] { font-size: 16px; }
+[data-font-size='large'] { font-size: 18px; }
+[data-font-size='extra-large'] { font-size: 20px; }
+
+.compact-mode .p-6 { padding: 1rem; }
+.compact-mode .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 /* Performance optimizations */
 * {
   scroll-behavior: smooth;
