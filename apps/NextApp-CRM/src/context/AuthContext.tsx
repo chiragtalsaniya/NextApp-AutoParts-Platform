@@ -64,7 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user?.role === 'super_admin') {
         try {
           const response = await companiesAPI.getCompanies();
-          setAllCompanyIds(Array.isArray(response.data) ? response.data.map((c: any) => c.id) : []);
+          const companies = response.data?.companies || response.data || [];
+          setAllCompanyIds(Array.isArray(companies) ? companies.map((c: any) => c.id) : []);
         } catch (err) {
           setAllCompanyIds([]);
         }
@@ -84,14 +85,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const response = await storesAPI.getStores();
           // response.data.stores is an array of stores
-          setAllStoreIds(Array.isArray(response.data.stores) ? response.data.stores.map((s: any) => s.Branch_Code) : []);
+          const stores = response.data?.stores || response.data || [];
+          setAllStoreIds(Array.isArray(stores) ? stores.map((s: any) => s.Branch_Code) : []);
         } catch (err) {
           setAllStoreIds([]);
         }
       } else if (user?.role === 'admin' && user.company_id) {
         try {
           const response = await storesAPI.getStores({ company_id: user.company_id });
-          setAllStoreIds(Array.isArray(response.data.stores) ? response.data.stores.map((s: any) => s.Branch_Code) : []);
+          const stores = response.data?.stores || response.data || [];
+          setAllStoreIds(Array.isArray(stores) ? stores.map((s: any) => s.Branch_Code) : []);
         } catch (err) {
           setAllStoreIds([]);
         }
@@ -108,14 +111,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user?.role === 'super_admin') {
         try {
           const response = await retailersAPI.getRetailers();
-          setAllRetailerIds(Array.isArray(response.data.retailers) ? response.data.retailers.map((r: any) => r.Retailer_Id) : []);
+          const retailers = response.data?.retailers || response.data || [];
+          setAllRetailerIds(Array.isArray(retailers) ? retailers.map((r: any) => r.Retailer_Id) : []);
         } catch (err) {
           setAllRetailerIds([]);
         }
       } else if (user?.role === 'admin' && user.company_id) {
         try {
           const response = await retailersAPI.getRetailers({ company_id: user.company_id });
-          setAllRetailerIds(Array.isArray(response.data.retailers) ? response.data.retailers.map((r: any) => r.Retailer_Id) : []);
+          const retailers = response.data?.retailers || response.data || [];
+          setAllRetailerIds(Array.isArray(retailers) ? retailers.map((r: any) => r.Retailer_Id) : []);
         } catch (err) {
           setAllRetailerIds([]);
         }
