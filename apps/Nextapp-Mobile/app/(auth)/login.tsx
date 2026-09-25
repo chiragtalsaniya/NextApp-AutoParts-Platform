@@ -155,7 +155,7 @@ export default function LoginScreen() {
         colors={['#667eea', '#764ba2']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
       
       <KeyboardAvoidingView
@@ -325,7 +325,7 @@ export default function LoginScreen() {
                       disabled={isSubmitting}
                     >
                       <LinearGradient
-                        colors={item.colors}
+                        colors={item.colors as [string, string, ...string[]]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={[styles.credentialGradient, isSubmitting && styles.disabledButton]}

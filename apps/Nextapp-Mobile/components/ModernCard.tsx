@@ -7,7 +7,7 @@ interface ModernCardProps {
   style?: ViewStyle;
   onPress?: () => void;
   variant?: 'default' | 'gradient' | 'glass' | 'elevated';
-  gradientColors?: string[];
+  gradientColors?: [string, string, ...string[]];
 }
 
 export const ModernCard: React.FC<ModernCardProps> = ({

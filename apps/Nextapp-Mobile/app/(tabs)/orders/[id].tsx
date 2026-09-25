@@ -46,8 +46,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 
-interface OrderDetails extends Order {
+interface OrderDetails extends Omit<Order, 'items' | 'retailer'> {
   items?: OrderItem[];
+  retailer?: Order['retailer'] & { creditLimit?: number };
   statusHistory?: StatusHistoryItem[];
 }
 

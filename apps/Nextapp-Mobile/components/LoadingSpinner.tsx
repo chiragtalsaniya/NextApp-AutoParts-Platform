@@ -41,7 +41,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
           colors={['#667eea', '#764ba2']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
         <Animated.View entering={FadeIn.duration(300)} style={styles.content}>
           <View style={styles.spinnerContainer}>

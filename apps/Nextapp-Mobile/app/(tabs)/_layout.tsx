@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { Chrome as Home, User, ShoppingCart, ChartBar as BarChart3 } from 'lucide-react-native';
+import { Home, User, ShoppingCart, ChartBar as BarChart3 } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { BlurView } from 'expo-blur';

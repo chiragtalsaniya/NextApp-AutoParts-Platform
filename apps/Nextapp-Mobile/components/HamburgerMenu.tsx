@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import { Menu, X, Chrome as Home, Package, ShoppingCart, Users, ChartBar as BarChart3, User, Grid3x3, Settings, LogOut, Info, CircleHelp as HelpCircle, Zap, FileText, Building } from 'lucide-react-native';
+import { Menu, X, Home, Package, ShoppingCart, Users, ChartBar as BarChart3, User, Grid3x3, Settings, LogOut, Info, CircleHelp as HelpCircle, Zap, FileText, Building } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import Animated, { FadeIn, SlideInRight, SlideOutRight } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,7 +38,7 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ onLogout }) => {
 
   const handleNavigation = (route: string) => {
     setIsOpen(false);
-    router.push(route);
+    router.push(route as never);
   };
 
   const getMenuItems = () => {

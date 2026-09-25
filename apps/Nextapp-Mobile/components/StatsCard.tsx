@@ -14,7 +14,7 @@ interface StatsCardProps {
     isPositive: boolean;
   };
   variant?: 'default' | 'gradient';
-  gradientColors?: string[];
+  gradientColors?: [string, string, ...string[]];
   delay?: number;
 }
 
