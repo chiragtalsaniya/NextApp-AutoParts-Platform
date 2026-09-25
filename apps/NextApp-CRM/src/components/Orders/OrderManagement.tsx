@@ -16,7 +16,7 @@ import {
   MapPin,
   Zap
 } from 'lucide-react';
-import { OrderMaster, OrderItem, OrderStatus, NewOrderForm, getOrderStatusColor, timestampToDate, formatCurrency } from '../../types';
+import { OrderMaster, OrderStatus, NewOrderForm, getOrderStatusColor, timestampToDate, formatCurrency } from '../../types';
 import { format } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
 import { NewOrderFormModal } from './NewOrderForm';
@@ -29,7 +29,6 @@ export const OrderManagement: React.FC = () => {
   const canCreateOrder = ['admin', 'manager', 'storeman', 'salesman'].includes(user?.role || '');
   const canUpdateStatus = ['admin', 'manager', 'storeman'].includes(user?.role || '');
   const [orders, setOrders] = useState<OrderMaster[]>([]);
-  const [orderItemsMap, setOrderItemsMap] = useState<Record<number, OrderItem[]>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<string>('all');
@@ -178,7 +177,6 @@ export const OrderManagement: React.FC = () => {
       const orderWithItems = response.data;
       
       setSelectedOrder(orderWithItems);
-      setOrderItemsMap(prev => ({ ...prev, [order.Order_Id]: orderWithItems.items || [] }));
       setShowOrderDetails(true);
     } catch (err) {
       console.error('Failed to load order details:', err);
@@ -206,6 +204,7 @@ export const OrderManagement: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to create order:', err);
       setModalError(err?.response?.data?.error || 'Failed to create order. Please try again.');
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -217,6 +216,7 @@ export const OrderManagement: React.FC = () => {
       setLoading(true);
       await ordersAPI.updateOrder(selectedOrder.Order_Id, orderData);
       setShowEditOrderForm(false);
+      setModalError(null);
       const response = await ordersAPI.getOrder(selectedOrder.Order_Id);
       setSelectedOrder(response.data);
       setOrders((current) => current.map((order) =>
@@ -224,6 +224,7 @@ export const OrderManagement: React.FC = () => {
       ));
     } catch (err: any) {
       setModalError(err?.response?.data?.error || 'Failed to update order. Please try again.');
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -246,10 +247,6 @@ export const OrderManagement: React.FC = () => {
       urgent: Boolean(item.Urgent_Status),
     })),
   } : undefined;
-
-  const getOrderItems = (orderId: number) => {
-    return orderItemsMap[orderId] || [];
-  };
 
   const getPageTitle = () => {
     switch (user?.role) {
@@ -547,7 +544,10 @@ export const OrderManagement: React.FC = () => {
               )}
               {canCreateOrder && selectedOrder && ['New', 'Pending', 'Processing'].includes(selectedOrder.Order_Status || '') && (
                 <button
-                  onClick={() => setShowEditOrderForm(true)}
+                  onClick={() => {
+                    setModalError(null);
+                    setShowEditOrderForm(true);
+                  }}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-white hover:bg-gray-900"
                 >
                   Edit Order
@@ -588,7 +588,10 @@ export const OrderManagement: React.FC = () => {
           </button>
           {canCreateOrder && (
             <button 
-              onClick={() => setShowNewOrderForm(true)}
+              onClick={() => {
+                setModalError(null);
+                setShowNewOrderForm(true);
+              }}
               className="bg-[#003366] text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2"
             >
               <Plus className="w-5 h-5" />
