@@ -133,6 +133,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.data.token) {
         localStorage.setItem('auth_token', response.data.token);
       }
+      if (response.data.refreshToken) {
+        localStorage.setItem('refresh_token', response.data.refreshToken);
+      }
       
       setUser(response.data.user);
       return true;
@@ -145,8 +148,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authAPI.logout();
       setUser(null);
+      localStorage.removeItem('refresh_token');
     } catch (error) {
       setUser(null);
+      localStorage.removeItem('refresh_token');
     }
   };
 

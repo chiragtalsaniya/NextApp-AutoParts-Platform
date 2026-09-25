@@ -68,13 +68,15 @@ export default function PartsScreen() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
 
   const canManageParts = ['super_admin', 'admin', 'manager'].includes(user?.role || '');
   const canAddToCart = ['admin', 'manager', 'salesman'].includes(user?.role || '');
 
   useEffect(() => {
-    loadParts();
-  }, []);
+    const timer = setTimeout(() => loadParts(), 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     applyFiltersAndSort();
@@ -83,9 +85,21 @@ export default function PartsScreen() {
   const loadParts = async () => {
     try {
       setError(null);
-      const response = await apiService.getParts({ limit: 100 });
+      const response = await apiService.getParts({
+        page: 1,
+        limit: pagination.limit,
+        search: searchQuery.trim() || undefined,
+      });
       const partsData = response.parts || response.data || [];
       setParts(partsData);
+      if (response.pagination) {
+        setPagination((current) => ({
+          ...current,
+          page: response.pagination.page,
+          total: response.pagination.total,
+          pages: response.pagination.pages,
+        }));
+      }
     } catch (error: any) {
       setError(error.error || 'Failed to load parts');
     } finally {

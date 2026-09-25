@@ -89,6 +89,7 @@ export default function RetailersScreen() {
   const [selectedSort, setSelectedSort] = useState<SortType>('name_asc');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [newRetailer, setNewRetailer] = useState({
@@ -108,8 +109,9 @@ export default function RetailersScreen() {
   );
 
   useEffect(() => {
-    loadRetailers();
-  }, []);
+    const timer = setTimeout(() => loadRetailers(), 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     applyFiltersAndSort();
@@ -118,9 +120,21 @@ export default function RetailersScreen() {
   const loadRetailers = async () => {
     try {
       setError(null);
-      const response = await apiService.getRetailers({ limit: 100 });
+      const response = await apiService.getRetailers({
+        page: 1,
+        limit: pagination.limit,
+        search: searchQuery.trim() || undefined,
+      });
       const retailerData = response.retailers || response.data || [];
       setRetailers(retailerData);
+      if (response.pagination) {
+        setPagination((current) => ({
+          ...current,
+          page: response.pagination.page,
+          total: response.pagination.total,
+          pages: response.pagination.pages,
+        }));
+      }
     } catch (error: any) {
       setError(error.error || 'Failed to load retailers');
     } finally {

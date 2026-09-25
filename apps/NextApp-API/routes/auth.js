@@ -19,6 +19,16 @@ function getJwtSecret() {
   return secret;
 }
 
+function issueTokens(user) {
+  const payload = { userId: user.id, email: user.email, role: user.role };
+
+  return {
+    token: jwt.sign({ ...payload, tokenType: 'access' }, getJwtSecret(), { expiresIn: '24h' }),
+    refreshToken: jwt.sign({ ...payload, tokenType: 'refresh' }, getJwtSecret(), { expiresIn: '30d' }),
+    expiresIn: 86400,
+  };
+}
+
 // Login endpoint
 router.post('/login', validateRequest(loginSchema), async (req, res) => {
   try {
@@ -48,18 +58,13 @@ router.post('/login', validateRequest(loginSchema), async (req, res) => {
       [user.id]
     );
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      getJwtSecret(),
-      { expiresIn: '24h' }
-    );
+    const tokens = issueTokens(user);
 
     // Remove password from response
     const { password_hash, ...userResponse } = user;
 
     res.json({
-      token,
+      ...tokens,
       user: userResponse
     });
   } catch (error) {
@@ -107,19 +112,33 @@ router.post('/change-password', authenticateToken, validateRequest(changePasswor
   }
 });
 
-// Refresh token
-router.post('/refresh', authenticateToken, async (req, res) => {
+// Refresh token. This endpoint intentionally does not require the expired access token.
+router.post('/refresh', async (req, res) => {
   try {
-    const token = jwt.sign(
-      { userId: req.user.id, email: req.user.email, role: req.user.role },
-      getJwtSecret(),
-      { expiresIn: '24h' }
-    );
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token required' });
+    }
 
-    res.json({ token });
+    const decoded = jwt.verify(refreshToken, getJwtSecret());
+    if (decoded.tokenType !== 'refresh') {
+      return res.status(401).json({ error: 'Invalid refresh token' });
+    }
+
+    const users = await executeQuery(
+      'SELECT * FROM users WHERE id = ? AND is_active = TRUE',
+      [decoded.userId],
+    );
+    if (users.length === 0) {
+      return res.status(401).json({ error: 'Invalid refresh token' });
+    }
+
+    const tokens = issueTokens(users[0]);
+
+    res.json(tokens);
   } catch (error) {
     console.error('Refresh token error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(401).json({ error: 'Invalid or expired refresh token' });
   }
 });
 
