@@ -10,6 +10,7 @@ export const authAPI = {
   
   logout: () => {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
     return Promise.resolve();
   },
   

@@ -44,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (error) {
             console.error('Failed to get user profile:', error);
             localStorage.removeItem('auth_token');
+            localStorage.removeItem('refresh_token');
           }
         }
       } catch (error) {
@@ -148,9 +149,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authAPI.logout();
       setUser(null);
+      localStorage.removeItem('auth_token');
       localStorage.removeItem('refresh_token');
     } catch (error) {
       setUser(null);
+      localStorage.removeItem('auth_token');
       localStorage.removeItem('refresh_token');
     }
   };
