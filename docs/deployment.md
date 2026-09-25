@@ -63,7 +63,11 @@ Point the domain to the server and configure Nginx to serve the CRM build and pr
 ```nginx
 server {
     listen 80;
+    listen 443 ssl;
     server_name yogrind.shop;
+
+    ssl_certificate /etc/letsencrypt/live/yogrind.shop/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yogrind.shop/privkey.pem;
 
     root /var/www/nextapp-autoparts/apps/NextApp-CRM/dist;
     index index.html;

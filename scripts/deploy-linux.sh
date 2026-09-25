@@ -80,7 +80,11 @@ chmod 600 "${DEPLOY_PATH}/apps/NextApp-API/.env"
 sudo -n tee /etc/nginx/sites-available/nextapp-autoparts >/dev/null <<NGINX
 server {
     listen 80;
+  listen 443 ssl;
     server_name ${SERVER_HOST};
+
+  ssl_certificate /etc/letsencrypt/live/yogrind.shop/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/yogrind.shop/privkey.pem;
 
     root ${DEPLOY_PATH}/apps/NextApp-CRM/dist;
     index index.html;
