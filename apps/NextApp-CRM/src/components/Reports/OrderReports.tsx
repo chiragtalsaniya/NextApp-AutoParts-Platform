@@ -36,6 +36,7 @@ interface OrderReportRow {
 
 interface ReportResponse {
   orders: OrderReportRow[];
+  orderItems?: any[];
   stats: {
     totalOrders: number;
     totalRevenue: number;
@@ -145,6 +146,7 @@ export const OrderReports: React.FC = () => {
     try {
       const reportData = {
         orders,
+        orderItems: report?.orderItems || [],
         filters,
         stats,
         generatedAt: new Date().toISOString()

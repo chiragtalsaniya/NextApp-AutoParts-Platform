@@ -15,6 +15,7 @@ import { Orders } from './pages/Orders';
 import { ItemStatus } from './pages/ItemStatus';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
+import { Transport } from './pages/Transport';
 import { Unauthorized } from './pages/Unauthorized';
 
 const AppRoutes: React.FC = () => {
@@ -60,6 +61,7 @@ const AppRoutes: React.FC = () => {
           </DashboardLayout>
         </ProtectedRoute>
       } />
+      <Route path="/transport" element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'manager']}><DashboardLayout><Transport /></DashboardLayout></ProtectedRoute>} />
       
       <Route path="/users" element={
         <ProtectedRoute allowedRoles={['super_admin', 'admin', 'manager']}>

@@ -81,6 +81,13 @@ export const storesAPI = {
     api.delete(`/stores/${id}`)
 };
 
+export const transportAPI = {
+  getTransports: (params?: any) => api.get('/transport', { params }),
+  createTransport: (data: any) => api.post('/transport', data),
+  updateTransport: (id: number, data: any) => api.put(`/transport/${id}`, data),
+  deleteTransport: (id: number) => api.delete(`/transport/${id}`),
+};
+
 // Retailers API
 export const retailersAPI = {
   getRetailers: (params?: any) => 

@@ -20,6 +20,7 @@ interface ReportData {
 }
 
 export const exportToExcel = async (data: ReportData, filename: string) => {
+  const orderItems = data.orderItems || [];
   const workbook = XLSX.utils.book_new();
 
   // Summary Sheet
@@ -50,8 +51,8 @@ export const exportToExcel = async (data: ReportData, filename: string) => {
   ];
 
   data.orders.forEach(order => {
-    const orderItems = data.orderItems.filter(item => item.Order_Id === order.Order_Id);
-    const orderTotal = orderItems.reduce((sum, item) => sum + (item.ItemAmount || 0), 0);
+    const items = orderItems.filter(item => item.Order_Id === order.Order_Id);
+    const orderTotal = items.reduce((sum, item) => sum + (item.ItemAmount || 0), 0);
 
     ordersData.push([
       order.Order_Id.toString(),
@@ -93,7 +94,7 @@ export const exportToExcel = async (data: ReportData, filename: string) => {
     ['Order ID', 'Item ID', 'Part Admin', 'Part Salesman', 'Order Qty', 'Dispatch Qty', 'MRP', 'Item Amount', 'Status', 'Discounts']
   ];
 
-  data.orderItems.forEach(item => {
+  orderItems.forEach(item => {
     const totalDiscount = (item.Discount || 0) + (item.SchemeDisc || 0) + (item.AdditionalDisc || 0);
     
     itemsData.push([
@@ -121,6 +122,7 @@ export const exportToExcel = async (data: ReportData, filename: string) => {
 };
 
 export const exportToPDF = async (data: ReportData, filename: string) => {
+  const orderItems = data.orderItems || [];
   const doc = new jsPDF();
   
   // Header
@@ -180,8 +182,8 @@ export const exportToPDF = async (data: ReportData, filename: string) => {
   doc.text('Order Details', 20, 20);
 
   const ordersTableData = data.orders.map(order => {
-    const orderItems = data.orderItems.filter(item => item.Order_Id === order.Order_Id);
-    const orderTotal = orderItems.reduce((sum, item) => sum + (item.ItemAmount || 0), 0);
+    const items = orderItems.filter(item => item.Order_Id === order.Order_Id);
+    const orderTotal = items.reduce((sum, item) => sum + (item.ItemAmount || 0), 0);
     
     return [
       order.Order_Id.toString(),
@@ -206,6 +208,7 @@ export const exportToPDF = async (data: ReportData, filename: string) => {
 };
 
 export const exportToWord = async (data: ReportData, filename: string) => {
+  const orderItems = data.orderItems || [];
   const doc = new Document({
     sections: [{
       properties: {},
@@ -379,8 +382,8 @@ export const exportToWord = async (data: ReportData, filename: string) => {
               ]
             }),
             ...data.orders.slice(0, 20).map(order => {
-              const orderItems = data.orderItems.filter(item => item.Order_Id === order.Order_Id);
-              const orderTotal = orderItems.reduce((sum, item) => sum + (item.ItemAmount || 0), 0);
+              const items = orderItems.filter(item => item.Order_Id === order.Order_Id);
+              const orderTotal = items.reduce((sum, item) => sum + (item.ItemAmount || 0), 0);
               
               return new TableRow({
                 children: [
