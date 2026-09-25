@@ -1,7 +1,7 @@
 import express from 'express';
 import { executeQuery, executeTransaction, pool } from '../config/database.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
-import { validateRequest, orderCreateSchema, orderStatusUpdateSchema } from '../middleware/validation.js';
+import { validateRequest, orderAssignmentSchema, orderCreateSchema, orderStatusUpdateSchema } from '../middleware/validation.js';
 
 const orderStatusTransitions = {
   New: ['Pending', 'Processing', 'Hold', 'Cancelled'],
@@ -406,6 +406,52 @@ router.put('/:id',
       connection.release();
     }
   }
+);
+
+router.patch('/:id/assignment',
+  authenticateToken,
+  authorizeRoles('super_admin', 'admin', 'manager'),
+  validateRequest(orderAssignmentSchema),
+  async (req, res) => {
+    try {
+      const orderId = req.params.id;
+      const { transport_id, dispatch_id } = req.body;
+      const orders = await executeQuery(
+        `SELECT om.Order_Id, om.Branch, s.company_id
+         FROM order_master om
+         LEFT JOIN stores s ON om.Branch = s.Branch_Code
+         WHERE om.Order_Id = ?`,
+        [orderId],
+      );
+      if (!orders.length) return res.status(404).json({ error: 'Order not found' });
+      const order = orders[0];
+      if (req.user.role === 'manager' && order.Branch !== req.user.store_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      if (req.user.role === 'admin' && order.company_id !== req.user.company_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const transports = await executeQuery(
+        `SELECT id, provider, type
+         FROM transport
+         WHERE id = ? AND store_id = ?`,
+        [transport_id, order.Branch],
+      );
+      if (!transports.length) return res.status(400).json({ error: 'Transport is not available for this order branch' });
+
+      await executeQuery(
+        `UPDATE order_master
+         SET Transport_Id = ?, TransportBy = ?, DispatchId = ?, Last_Sync = ?
+         WHERE Order_Id = ?`,
+        [transport_id, transports[0].provider, dispatch_id || null, Date.now(), orderId],
+      );
+      res.json({ message: 'Order transport assigned successfully' });
+    } catch (error) {
+      console.error('Assign order transport error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
 );
 
 router.patch('/:id/status',

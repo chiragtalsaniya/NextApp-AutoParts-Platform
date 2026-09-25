@@ -20,7 +20,7 @@ import { OrderMaster, OrderStatus, NewOrderForm, getOrderStatusColor, timestampT
 import { format } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
 import { NewOrderFormModal } from './NewOrderForm';
-import { ordersAPI } from '../../services/api';
+import { ordersAPI, transportAPI } from '../../services/api';
 import * as XLSX from 'xlsx';
 import { ORDER_STATUS_TRANSITIONS } from '@nextapp/shared-types';
 
@@ -28,6 +28,7 @@ export const OrderManagement: React.FC = () => {
   const { user } = useAuth();
   const canCreateOrder = ['admin', 'manager', 'storeman', 'salesman'].includes(user?.role || '');
   const canUpdateStatus = ['admin', 'manager', 'storeman'].includes(user?.role || '');
+  const canAssignTransport = ['super_admin', 'admin', 'manager'].includes(user?.role || '');
   const [orders, setOrders] = useState<OrderMaster[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
@@ -43,6 +44,10 @@ export const OrderManagement: React.FC = () => {
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [transports, setTransports] = useState<Array<{ id: number; store_id: string; provider: string; type: string }>>([]);
+  const [selectedTransportId, setSelectedTransportId] = useState('');
+  const [dispatchId, setDispatchId] = useState('');
+  const [isAssigningTransport, setIsAssigningTransport] = useState(false);
 
   // Load orders from API
   useEffect(() => {
@@ -81,6 +86,13 @@ export const OrderManagement: React.FC = () => {
       loadOrders();
     }
   }, [user, currentPage, statusFilter, urgencyFilter]);
+
+  useEffect(() => {
+    if (!user || !['super_admin', 'admin', 'manager'].includes(user.role)) return;
+    transportAPI.getTransports()
+      .then((response) => setTransports(response.data?.transports || []))
+      .catch(() => setTransports([]));
+  }, [user]);
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -177,12 +189,33 @@ export const OrderManagement: React.FC = () => {
       const orderWithItems = response.data;
       
       setSelectedOrder(orderWithItems);
+      setSelectedTransportId(orderWithItems.Transport_Id ? String(orderWithItems.Transport_Id) : '');
+      setDispatchId(orderWithItems.DispatchId ? String(orderWithItems.DispatchId) : '');
       setShowOrderDetails(true);
     } catch (err) {
       console.error('Failed to load order details:', err);
       setError('Failed to load order details. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAssignTransport = async () => {
+    if (!selectedOrder || !selectedTransportId) return;
+    try {
+      setIsAssigningTransport(true);
+      setModalError(null);
+      await ordersAPI.assignOrderTransport(selectedOrder.Order_Id, {
+        transport_id: Number(selectedTransportId),
+        dispatch_id: dispatchId ? Number(dispatchId) : null,
+      });
+      const response = await ordersAPI.getOrder(selectedOrder.Order_Id);
+      setSelectedOrder(response.data);
+      setOrders((current) => current.map((order) => order.Order_Id === response.data.Order_Id ? response.data : order));
+    } catch (err: any) {
+      setModalError(err?.response?.data?.error || 'Failed to assign transport. Please try again.');
+    } finally {
+      setIsAssigningTransport(false);
     }
   };
 
@@ -404,6 +437,56 @@ export const OrderManagement: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {canAssignTransport && selectedOrder && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Truck className="w-5 h-5 text-[#003366]" />
+                  <h3 className="text-lg font-semibold text-gray-900">Transport and Dispatch</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                  <label className="text-sm font-medium text-gray-700">
+                    Transport
+                    <select
+                      value={selectedTransportId}
+                      onChange={(event) => setSelectedTransportId(event.target.value)}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                    >
+                      <option value="">Select transport</option>
+                      {transports
+                        .filter((transport) => !selectedOrder.Branch || transport.store_id === selectedOrder.Branch)
+                        .map((transport) => (
+                          <option key={transport.id} value={transport.id}>
+                            {transport.provider} ({transport.type})
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Dispatch ID
+                    <input
+                      type="number"
+                      min="1"
+                      value={dispatchId}
+                      onChange={(event) => setDispatchId(event.target.value)}
+                      placeholder="Optional"
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAssignTransport}
+                    disabled={!selectedTransportId || isAssigningTransport}
+                    className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isAssigningTransport ? 'Assigning...' : 'Assign Transport'}
+                  </button>
+                </div>
+                {!transports.some((transport) => !selectedOrder.Branch || transport.store_id === selectedOrder.Branch) && (
+                  <p className="mt-2 text-sm text-gray-500">No transport providers are configured for this branch.</p>
+                )}
+              </div>
+            )}
 
             {/* Remarks */}
             {selectedOrder.Remark && (

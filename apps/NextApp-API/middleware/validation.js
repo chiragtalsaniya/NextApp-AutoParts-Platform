@@ -209,6 +209,11 @@ export const orderStatusUpdateSchema = Joi.object({
   notes: Joi.string().max(1000).allow('', null)
 });
 
+export const orderAssignmentSchema = Joi.object({
+  transport_id: Joi.number().integer().positive().required(),
+  dispatch_id: Joi.number().integer().positive().allow(null)
+});
+
 // Order validation schemas
 export const orderCreateSchema = Joi.object({
   retailer_id: Joi.number().required(),
