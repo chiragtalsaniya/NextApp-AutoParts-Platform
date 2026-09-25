@@ -248,6 +248,12 @@ export const OrderManagement: React.FC = () => {
     try {
       setLoading(true);
       await ordersAPI.updateOrder(selectedOrder.Order_Id, orderData);
+      if (orderData.transport_id) {
+        await ordersAPI.assignOrderTransport(selectedOrder.Order_Id, {
+          transport_id: orderData.transport_id,
+          dispatch_id: orderData.dispatch_id ?? null,
+        });
+      }
       setShowEditOrderForm(false);
       setModalError(null);
       const response = await ordersAPI.getOrder(selectedOrder.Order_Id);
@@ -269,6 +275,8 @@ export const OrderManagement: React.FC = () => {
     po_date: selectedOrder.PO_Date ? new Date(selectedOrder.PO_Date) : new Date(),
     urgent: Boolean(selectedOrder.Urgent_Status),
     remark: selectedOrder.Remark || '',
+    transport_id: selectedOrder.Transport_Id,
+    dispatch_id: selectedOrder.DispatchId || null,
     items: (selectedOrder.items || []).map((item) => ({
       part_number: item.Part_Admin || '',
       part_name: item.Part_Salesman || '',
@@ -891,6 +899,9 @@ export const OrderManagement: React.FC = () => {
         initialData={editableOrderData}
         isEdit
         errorMessage={modalError}
+        transports={transports
+          .filter((transport) => !selectedOrder?.Branch || transport.store_id === selectedOrder.Branch)
+          .map((transport) => ({ id: transport.id, provider: transport.provider, type: transport.type }))}
       />
     </div>
   );

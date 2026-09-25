@@ -221,6 +221,8 @@ export const orderCreateSchema = Joi.object({
   po_date: Joi.date().iso(), // optional but validated if present
   urgent: Joi.boolean(),
   remark: Joi.string().max(1000).allow(''),
+  transport_id: Joi.number().integer().positive().optional(),
+  dispatch_id: Joi.number().integer().positive().allow(null),
   items: Joi.array().items(
     Joi.object({
       part_number: Joi.string().required(),

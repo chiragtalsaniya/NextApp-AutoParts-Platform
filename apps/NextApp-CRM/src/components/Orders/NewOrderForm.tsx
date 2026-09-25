@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Minus, Trash2, Search, Package, AlertTriangle, Save, Calculator, ShoppingCart, User, Calendar, FileText, Zap, CheckCircle, Triangle as ExclamationTriangle } from 'lucide-react';
-import { NewOrderForm, NewOrderItemForm, Part, Retailer, dateToTimestamp, formatCurrency } from '../../types';
-import { useAuth } from '../../context/AuthContext';
+import { X, Plus, Minus, Trash2, Search, Package, AlertTriangle, Save, Calculator, ShoppingCart, User, Calendar, FileText, Zap, Triangle as ExclamationTriangle } from 'lucide-react';
+import { NewOrderForm, NewOrderItemForm, Part, Retailer, formatCurrency } from '../../types';
 import { ItemMaster } from '../Parts/ItemMaster';
 import { retailersAPI } from '../../services/api';
+
+interface OrderTransportOption {
+  id: number;
+  provider: string;
+  type: string;
+}
 
 interface NewOrderFormProps {
   isOpen: boolean;
@@ -12,6 +17,7 @@ interface NewOrderFormProps {
   initialData?: NewOrderForm;
   isEdit?: boolean;
   errorMessage?: string | null;
+  transports?: OrderTransportOption[];
 }
 
 interface ValidationErrors {
@@ -27,14 +33,15 @@ interface DuplicateItemConfirmation {
   newPart: Part;
 }
 
-export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose, onSubmit, initialData, isEdit = false, errorMessage }) => {
-  const { user } = useAuth();
+export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose, onSubmit, initialData, isEdit = false, errorMessage, transports = [] }) => {
   const [formData, setFormData] = useState<NewOrderForm>({
     retailer_id: 0,
     po_number: '',
     po_date: new Date(),
     urgent: false,
     remark: '',
+    transport_id: undefined,
+    dispatch_id: null,
     items: []
   });
   const [showPartSelector, setShowPartSelector] = useState(false);
@@ -91,7 +98,7 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
     if (formData.items.length === 0) {
       errors.items = 'Please add at least one item to the order';
     } else {
-      const itemErrors = formData.items.some((item, index) => {
+      formData.items.some((item, index) => {
         if (!item.part_number || item.part_number.trim() === '') {
           errors.general = `Item ${index + 1}: Part number is required`;
           return true;
@@ -385,6 +392,36 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
                   <p className="mt-1 text-sm text-red-600">{validationErrors.po_number}</p>
                 )}
               </div>
+
+              {isEdit && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Transport</label>
+                    <select
+                      value={formData.transport_id || ''}
+                      onChange={(e) => handleInputChange('transport_id', e.target.value ? Number(e.target.value) : undefined)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] outline-none"
+                    >
+                      <option value="">Select transport</option>
+                      {transports.map((transport) => (
+                        <option key={transport.id} value={transport.id}>{transport.provider} ({transport.type})</option>
+                      ))}
+                    </select>
+                    {!transports.length && <p className="mt-1 text-xs text-gray-500">No transport providers are configured for this branch.</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Dispatch ID</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.dispatch_id || ''}
+                      onChange={(e) => handleInputChange('dispatch_id', e.target.value ? Number(e.target.value) : null)}
+                      placeholder="Optional"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] outline-none"
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -194,6 +194,8 @@ export interface NewOrderForm {
   po_date?: Date;
   urgent: boolean;
   remark?: string;
+  transport_id?: number;
+  dispatch_id?: number | null;
   items: NewOrderItemForm[];
 }
 
