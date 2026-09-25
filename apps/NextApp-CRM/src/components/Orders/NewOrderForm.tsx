@@ -40,6 +40,7 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
   const [showPartSelector, setShowPartSelector] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [retailers, setRetailers] = useState<Retailer[]>([]);
+  const [retailerError, setRetailerError] = useState<string | null>(null);
   const [selectedRetailer, setSelectedRetailer] = useState<Retailer | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [duplicateConfirmation, setDuplicateConfirmation] = useState<DuplicateItemConfirmation>({
@@ -53,6 +54,7 @@ export const NewOrderFormModal: React.FC<NewOrderFormProps> = ({ isOpen, onClose
       try {
         const res = await retailersAPI.getRetailers({ limit: 100 });
         setRetailers(res.data?.retailers || []);
+        setRetailerError(null);
       } catch (err) {
         setRetailerError('Failed to load retailers. Please try again or contact support.');
       }

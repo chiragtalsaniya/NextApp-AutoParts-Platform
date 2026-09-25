@@ -140,6 +140,21 @@ export const regionUpdateSchema = Joi.object({
   store_id: Joi.string().max(15)
 }).min(1);
 
+// Transport validation schemas
+export const transportCreateSchema = Joi.object({
+  store_id: Joi.string().max(15).required(),
+  type: Joi.string().min(1).max(100).required(),
+  provider: Joi.string().min(1).max(255).required(),
+  contact_number: Joi.string().max(50).allow('', null)
+});
+
+export const transportUpdateSchema = Joi.object({
+  store_id: Joi.string().max(15),
+  type: Joi.string().min(1).max(100),
+  provider: Joi.string().min(1).max(255),
+  contact_number: Joi.string().max(50).allow('', null)
+}).min(1);
+
 // Part validation schemas
 export const partCreateSchema = Joi.object({
   Part_Number: Joi.string().max(100).required(),
