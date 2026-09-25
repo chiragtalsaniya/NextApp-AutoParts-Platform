@@ -359,7 +359,11 @@ export default function PartDetailsScreen() {
         <Animated.View entering={FadeInUp.delay(0).duration(600)} style={styles.imageCard}>
           <View style={styles.imageContainer}>
             {part.Part_Image ? (
-              <Image source={{ uri: part.Part_Image }} style={styles.partImage} />
+              <Image
+                source={part.Part_Image ? { uri: part.Part_Image } : require('@/assets/images/icon.png')}
+                style={styles.partImage}
+                onError={(event) => { event.currentTarget.setNativeProps({ source: require('@/assets/images/icon.png') }); }}
+              />
             ) : (
               <LinearGradient
                 colors={['#667eea', '#764ba2']}

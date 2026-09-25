@@ -679,7 +679,11 @@ export default function CreateOrderScreen() {
                   <View style={styles.partHeader}>
                     <View style={styles.partImageContainer}>
                       {(item.image || item.Part_Image) ? (
-                        <Image source={{ uri: item.image || item.Part_Image }} style={styles.partImage} />
+                        <Image
+                          source={(item.image || item.Part_Image) ? { uri: item.image || item.Part_Image } : require('@/assets/images/icon.png')}
+                          style={styles.partImage}
+                          onError={(event) => { event.currentTarget.setNativeProps({ source: require('@/assets/images/icon.png') }); }}
+                        />
                       ) : (
                         <LinearGradient
                           colors={['#667eea', '#764ba2']}

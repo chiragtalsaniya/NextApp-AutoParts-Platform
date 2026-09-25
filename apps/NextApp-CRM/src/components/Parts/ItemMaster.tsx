@@ -535,6 +535,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
                     src={part.Part_Image} 
                     alt={part.Part_Name}
                     className="w-full h-64 object-cover rounded-lg border border-gray-200"
+                    onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/nextapp-icon.svg'; }}
                   />
                 ) : (
                   <div className="w-full h-64 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
@@ -794,6 +795,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
                     src={part.Part_Image} 
                     alt={part.Part_Name}
                     className="w-full h-full object-cover"
+                    onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/nextapp-icon.svg'; }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
