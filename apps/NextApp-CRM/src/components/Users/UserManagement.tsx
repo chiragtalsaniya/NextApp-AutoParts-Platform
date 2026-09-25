@@ -34,6 +34,7 @@ export const UserManagement: React.FC = () => {
   const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | 'all'>('all');
   const [selectedCompany, setSelectedCompany] = useState('all');
@@ -81,6 +82,7 @@ export const UserManagement: React.FC = () => {
   });
 
   const handleAddUser = () => {
+    setModalError(null);
     setFormData({
       name: '',
       email: '',
@@ -95,6 +97,7 @@ export const UserManagement: React.FC = () => {
   };
 
   const handleEditUser = (user: User) => {
+    setModalError(null);
     setSelectedUser(user);
     setFormData(user);
     setProfileImagePreview(user.profile_image || '');
@@ -110,6 +113,7 @@ export const UserManagement: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      setModalError(null);
       if (showEditModal && selectedUser) {
         await usersAPI.updateUser(selectedUser.id, formData);
       } else if (showAddModal) {
@@ -122,7 +126,7 @@ export const UserManagement: React.FC = () => {
       setShowAddModal(false);
     } catch (err: any) {
       const apiError = err?.response?.data?.error || err?.response?.data?.details?.[0];
-      setError(apiError || 'Failed to save user. Please try again.');
+      setModalError(apiError || 'Failed to save user. Please try again.');
     } finally {
       setLoading(false);
       setFormData({});
@@ -418,6 +422,7 @@ export const UserManagement: React.FC = () => {
           </div>
 
           <div className="p-6 border-t border-gray-200 flex justify-end space-x-4">
+            {modalError && <p className="mr-auto self-center text-sm text-red-600" role="alert">{modalError}</p>}
             <button
               onClick={onClose}
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

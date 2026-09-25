@@ -41,6 +41,7 @@ export const ItemStatusManagement: React.FC = () => {
   const [formData, setFormData] = useState<Partial<ItemStatus>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [stats, setStats] = useState({ total: 0, critical: 0, low: 0, good: 0 });
 
   const accessibleStores = getAccessibleStores();
@@ -119,6 +120,7 @@ export const ItemStatusManagement: React.FC = () => {
   });
 
   const handleEditItem = (item: ItemStatus) => {
+    setModalError(null);
     setSelectedItem(item);
     setFormData({
       Part_A: item.Part_A,
@@ -134,6 +136,7 @@ export const ItemStatusManagement: React.FC = () => {
   const handleViewItem = async (item: ItemStatus) => {
     try {
       setLoading(true);
+      setModalError(null);
       const response = await itemStatusAPI.getItemStatusByStoreAndPart(
         item.Branch_Code,
         item.Part_No
@@ -234,9 +237,9 @@ export const ItemStatusManagement: React.FC = () => {
       setFormData({});
 
       alert('Item status updated successfully!');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to update item:', err);
-      alert('Failed to update item. Please try again.');
+      setModalError(err?.response?.data?.error || 'Failed to update item. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -358,6 +361,7 @@ export const ItemStatusManagement: React.FC = () => {
           </div>
 
           <div className="p-6 border-t border-gray-200 flex justify-end space-x-4">
+            {modalError && <p className="mr-auto self-center text-sm text-red-600" role="alert">{modalError}</p>}
             <button
               onClick={() => setShowEditModal(false)}
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

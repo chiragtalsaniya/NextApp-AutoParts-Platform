@@ -46,6 +46,7 @@ export const RetailerManagement: React.FC = () => {
   const [retailerImagePreview, setRetailerImagePreview] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Load retailers from API
   useEffect(() => {
@@ -78,6 +79,7 @@ export const RetailerManagement: React.FC = () => {
   });
 
   const handleAddRetailer = () => {
+    setModalError(null);
     setFormData({
       Retailer_Name: '',
       RetailerCRMId: '',
@@ -107,6 +109,7 @@ export const RetailerManagement: React.FC = () => {
   };
 
   const handleEditRetailer = (retailer: Retailer) => {
+    setModalError(null);
     setSelectedRetailer(retailer);
     setFormData(retailer);
     setRetailerImagePreview(retailer.RetailerImage || '');
@@ -121,6 +124,7 @@ export const RetailerManagement: React.FC = () => {
   const handleSaveRetailer = async () => {
     try {
       setLoading(true);
+      setModalError(null);
       if (showEditModal && selectedRetailer) {
         await retailersAPI.updateRetailer(selectedRetailer.Retailer_Id, formData);
       } else if (showAddModal) {
@@ -131,8 +135,8 @@ export const RetailerManagement: React.FC = () => {
       setRetailers(response.data.retailers || []);
       setShowEditModal(false);
       setShowAddModal(false);
-    } catch (err) {
-      setError('Failed to save retailer. Please try again.');
+    } catch (err: any) {
+      setModalError(err?.response?.data?.error || 'Failed to save retailer. Please try again.');
     } finally {
       setLoading(false);
       setFormData({});
@@ -702,6 +706,7 @@ export const RetailerManagement: React.FC = () => {
 
         {/* Edit Retailer Button */}
         <div className="p-6 border-t border-gray-200 dark:border-gray-800 flex justify-end space-x-4">
+          {modalError && <p className="mr-auto self-center text-sm text-red-600" role="alert">{modalError}</p>}
           {canManageRetailers && (
             <button
               onClick={() => {

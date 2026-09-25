@@ -41,6 +41,7 @@ export const StoreManagement: React.FC = () => {
   const [storeImagePreview, setStoreImagePreview] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Load stores and companies from API
   useEffect(() => {
@@ -95,6 +96,7 @@ export const StoreManagement: React.FC = () => {
   });
 
   const handleAddStore = () => {
+    setModalError(null);
     setFormData({
       Branch_Code: '',
       Branch_Name: '',
@@ -113,6 +115,7 @@ export const StoreManagement: React.FC = () => {
   };
 
   const handleEditStore = (store: Store) => {
+    setModalError(null);
     if (!canAccessStore(store.Branch_Code)) return;
     setSelectedStore(store);
     setFormData(store);
@@ -155,6 +158,7 @@ export const StoreManagement: React.FC = () => {
   const handleSaveStore = async () => {
     try {
       setLoading(true);
+      setModalError(null);
       if (showEditModal && selectedStore) {
         await storesAPI.updateStore(selectedStore.Branch_Code, formData);
       } else if (showAddModal) {
@@ -165,8 +169,8 @@ export const StoreManagement: React.FC = () => {
       setStores(storesRes.data.stores || []);
       setShowEditModal(false);
       setShowAddModal(false);
-    } catch (err) {
-      setError('Failed to save store. Please try again.');
+    } catch (err: any) {
+      setModalError(err?.response?.data?.error || 'Failed to save store. Please try again.');
     } finally {
       setLoading(false);
       setFormData({});
@@ -379,6 +383,7 @@ export const StoreManagement: React.FC = () => {
           </div>
 
           <div className="p-6 border-t border-gray-200 flex justify-end space-x-4">
+            {modalError && <p className="mr-auto self-center text-sm text-red-600" role="alert">{modalError}</p>}
             <button
               onClick={onClose}
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

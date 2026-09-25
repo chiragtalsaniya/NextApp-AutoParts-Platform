@@ -42,6 +42,7 @@ export const OrderManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Load orders from API
@@ -170,7 +171,9 @@ export const OrderManagement: React.FC = () => {
 
   const handleViewOrder = async (order: OrderMaster) => {
     try {
+      setModalError(null);
       setLoading(true);
+      setModalError(null);
       const response = await ordersAPI.getOrder(order.Order_Id);
       const orderWithItems = response.data;
       
@@ -220,7 +223,7 @@ export const OrderManagement: React.FC = () => {
         order.Order_Id === selectedOrder.Order_Id ? response.data : order,
       ));
     } catch (err: any) {
-      setStatusUpdateError(err?.response?.data?.error || 'Failed to update order. Please try again.');
+      setModalError(err?.response?.data?.error || 'Failed to update order. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -505,6 +508,7 @@ export const OrderManagement: React.FC = () => {
           </div>
 
           <div className="p-6 border-t border-gray-200">
+            {modalError && <p className="mb-3 text-sm text-red-600 text-right" role="alert">{modalError}</p>}
             {statusUpdateError && (
               <p className="mb-3 text-sm text-red-600 text-right">{statusUpdateError}</p>
             )}
@@ -792,6 +796,7 @@ export const OrderManagement: React.FC = () => {
         isOpen={showNewOrderForm}
         onClose={() => setShowNewOrderForm(false)}
         onSubmit={handleNewOrder}
+        errorMessage={modalError}
       />
       <NewOrderFormModal
         isOpen={showEditOrderForm}
@@ -799,6 +804,7 @@ export const OrderManagement: React.FC = () => {
         onSubmit={handleEditOrder}
         initialData={editableOrderData}
         isEdit
+        errorMessage={modalError}
       />
     </div>
   );

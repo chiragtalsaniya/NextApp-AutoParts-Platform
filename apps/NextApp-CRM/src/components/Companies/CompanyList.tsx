@@ -16,6 +16,7 @@ export const CompanyList: React.FC = () => {
   const [logoPreview, setLogoPreview] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [companyStats, setCompanyStats] = useState<Record<string, { stores: number; users: number }>>({});
 
   // Load companies from API
@@ -56,6 +57,7 @@ export const CompanyList: React.FC = () => {
   );
 
   const handleAddCompany = () => {
+    setModalError(null);
     setFormData({
       name: '',
       address: '',
@@ -68,6 +70,7 @@ export const CompanyList: React.FC = () => {
   };
 
   const handleEditCompany = (company: Company) => {
+    setModalError(null);
     if (!canAccessCompany(company.id)) return;
     setSelectedCompany(company);
     setFormData(company);
@@ -97,6 +100,7 @@ export const CompanyList: React.FC = () => {
   const handleSaveCompany = async () => {
     try {
       setLoading(true);
+      setModalError(null);
       if (showEditModal && selectedCompany) {
         await companiesAPI.updateCompany(selectedCompany.id, formData);
       } else if (showAddModal) {
@@ -107,8 +111,8 @@ export const CompanyList: React.FC = () => {
       setCompanies(response.data.companies || []);
       setShowEditModal(false);
       setShowAddModal(false);
-    } catch (err) {
-      setError('Failed to save company. Please try again.');
+    } catch (err: any) {
+      setModalError(err?.response?.data?.error || 'Failed to save company. Please try again.');
     } finally {
       setLoading(false);
       setFormData({});
@@ -248,6 +252,7 @@ export const CompanyList: React.FC = () => {
           </div>
 
           <div className="p-6 border-t border-gray-200 flex justify-end space-x-4">
+            {modalError && <p className="mr-auto self-center text-sm text-red-600" role="alert">{modalError}</p>}
             <button
               onClick={onClose}
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

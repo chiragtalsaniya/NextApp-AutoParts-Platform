@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { Region } from '../../types';
 import { regionsAPI, storesAPI } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
 
 export const RegionManagement: React.FC = () => {
   const [regions, setRegions] = useState<Region[]>([]);
@@ -27,6 +26,7 @@ export const RegionManagement: React.FC = () => {
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [formData, setFormData] = useState<Partial<Region>>({});
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,6 +60,7 @@ export const RegionManagement: React.FC = () => {
   });
 
   const handleAddRegion = () => {
+    setModalError(null);
     setFormData({
       id: '',
       name: '',
@@ -69,6 +70,7 @@ export const RegionManagement: React.FC = () => {
   };
 
   const handleEditRegion = (region: Region) => {
+    setModalError(null);
     setSelectedRegion(region);
     setFormData(region);
     setShowEditModal(true);
@@ -80,8 +82,10 @@ export const RegionManagement: React.FC = () => {
   };
 
   const handleSaveRegion = async () => {
+    let saved = false;
     try {
       setLoading(true);
+      setModalError(null);
       if (showEditModal && selectedRegion) {
         await regionsAPI.updateRegion(selectedRegion.id, formData);
         setShowEditModal(false);
@@ -91,12 +95,13 @@ export const RegionManagement: React.FC = () => {
       }
       const res = await regionsAPI.getRegions();
       setRegions(res.data?.regions || res.data || []);
-    } catch (err) {
-      setError('Failed to save region. Please try again.');
+      saved = true;
+    } catch (err: any) {
+      setModalError(err?.response?.data?.error || 'Failed to save region. Please try again.');
     } finally {
       setLoading(false);
       setFormData({});
-      setSelectedRegion(null);
+      if (saved) setSelectedRegion(null);
     }
   };
 
@@ -179,6 +184,11 @@ export const RegionManagement: React.FC = () => {
           </div>
 
           <div className="p-6 border-t border-gray-200 flex justify-end space-x-4">
+            {modalError && (
+              <p className="mr-auto self-center text-sm text-red-600" role="alert">
+                {modalError}
+              </p>
+            )}
             <button
               onClick={onClose}
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

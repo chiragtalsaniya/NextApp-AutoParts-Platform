@@ -44,6 +44,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
   const [formData, setFormData] = useState<Partial<Part>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({ page: 1, limit: 24, total: 0, pages: 0 });
 
   useEffect(() => {
@@ -99,6 +100,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
   }, [searchTerm, selectedCategory, selectedFocusGroup, statusFilter]);
 
   const handleAddPart = () => {
+    setModalError(null);
     setFormData({
       Part_Number: '',
       Part_Name: '',
@@ -125,6 +127,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
   };
 
   const handleEditPart = (part: Part) => {
+    setModalError(null);
     setSelectedPart(part);
     setFormData(part);
     setShowEditModal(true);
@@ -138,6 +141,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
   const handleSavePart = async () => {
     try {
       setLoading(true);
+      setModalError(null);
       if (showEditModal && selectedPart) {
         await partsAPI.updatePart(selectedPart.Part_Number, formData);
         setShowEditModal(false);
@@ -150,8 +154,8 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
       if (res.data?.pagination) {
         setPagination(prev => ({ ...prev, total: res.data.pagination.total, pages: res.data.pagination.pages }));
       }
-    } catch (err) {
-      setError('Failed to save part. Please try again.');
+    } catch (err: any) {
+      setModalError(err?.response?.data?.error || 'Failed to save part. Please try again.');
     } finally {
       setLoading(false);
       setFormData({});
@@ -482,6 +486,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({ onPartSelect, selectionM
           </div>
 
           <div className="p-6 border-t border-gray-200 flex justify-end space-x-4">
+            {modalError && <p className="mr-auto self-center text-sm text-red-600" role="alert">{modalError}</p>}
             <button
               onClick={onClose}
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
