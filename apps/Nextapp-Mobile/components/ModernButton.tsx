@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, ActivityIndicator, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import { colors, radii } from '@/constants/theme';
 
 interface ModernButtonProps {
   title: string;
@@ -99,7 +100,7 @@ export const ModernButton: React.FC<ModernButtonProps> = ({
         activeOpacity={1}
       >
         <LinearGradient
-          colors={['#667eea', '#764ba2']}
+          colors={[colors.primary, colors.primaryLight]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradient}
@@ -131,7 +132,7 @@ export const ModernButton: React.FC<ModernButtonProps> = ({
       <View style={styles.content}>
         {loading ? (
           <ActivityIndicator 
-            color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : '#667eea'} 
+            color={variant === 'primary' || variant === 'danger' ? colors.surface : colors.primary}
             size="small" 
           />
         ) : (
@@ -147,17 +148,14 @@ export const ModernButton: React.FC<ModernButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 16,
+    borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 2,
   },
   small: {
     paddingHorizontal: 16,
@@ -178,7 +176,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   primary: {
-    backgroundColor: '#667eea',
+    backgroundColor: colors.primary,
   },
   secondary: {
     backgroundColor: '#f8fafc',
@@ -188,16 +186,16 @@ const styles = StyleSheet.create({
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#667eea',
+    borderColor: colors.primary,
   },
   ghost: {
     backgroundColor: 'transparent',
   },
   danger: {
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.danger,
   },
   gradient: {
-    borderRadius: 16,
+    borderRadius: radii.md,
     flex: 1,
     width: '100%',
   },
@@ -233,9 +231,9 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   outlineText: {
-    color: '#667eea',
+    color: colors.primary,
   },
   ghostText: {
-    color: '#667eea',
+    color: colors.primary,
   },
 });

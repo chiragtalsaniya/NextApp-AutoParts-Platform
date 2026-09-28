@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { ChevronLeft, MoveHorizontal as MoreHorizontal } from 'lucide-react-native';
+import { colors } from '@/constants/theme';
 
 interface IOSHeaderProps {
   title: string;
@@ -27,7 +28,7 @@ export const IOSHeader: React.FC<IOSHeaderProps> = ({
 }) => {
   return (
     <>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
       <View style={[styles.container, large && styles.largeContainer]}>
         <View style={styles.content}>
           {/* Left Button */}
@@ -81,11 +82,11 @@ export const IOSHeader: React.FC<IOSHeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.canvas,
     paddingTop: 44, // Status bar height
     paddingBottom: 8,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#C6C6C8',
+    borderBottomColor: colors.border,
   },
   largeContainer: {
     paddingBottom: 16,
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 17,
-    color: '#007AFF',
+    color: colors.primary,
     fontFamily: 'Inter-Regular',
     marginHorizontal: 4,
   },

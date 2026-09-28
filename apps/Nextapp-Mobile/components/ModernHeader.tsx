@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ChevronLeft, MoveHorizontal as MoreHorizontal } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { colors, radii } from '@/constants/theme';
 
 interface ModernHeaderProps {
   title: string;
@@ -42,7 +43,7 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
             onPress={onBackPress}
             activeOpacity={0.7}
           >
-            <ChevronLeft size={24} color="#FFFFFF" />
+            <ChevronLeft size={24} color={variant === 'minimal' ? colors.primary : colors.surface} />
           </TouchableOpacity>
         )}
         {typeof leftButton === 'object' && leftButton !== null && 'onPress' in leftButton ? (
@@ -51,7 +52,7 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
             onPress={leftButton.onPress}
             activeOpacity={0.7}
           >
-            {leftButton.icon || <ChevronLeft size={24} color="#FFFFFF" />}
+            {leftButton.icon || <ChevronLeft size={24} color={variant === 'minimal' ? colors.primary : colors.surface} />}
             {leftButton.title && (
               <Text style={styles.buttonText}>{leftButton.title}</Text>
             )}
@@ -84,7 +85,7 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
             {rightButton.title && (
               <Text style={styles.buttonText}>{rightButton.title}</Text>
             )}
-            {rightButton.icon || <MoreHorizontal size={24} color="#FFFFFF" />}
+            {rightButton.icon || <MoreHorizontal size={24} color={variant === 'minimal' ? colors.primary : colors.surface} />}
           </TouchableOpacity>
         )}
       </View>
@@ -96,7 +97,7 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
       <>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <LinearGradient
-          colors={['#667eea', '#764ba2']}
+          colors={[colors.primary, colors.primaryLight]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.container}
@@ -133,7 +134,7 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#667eea" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
       <View style={[styles.container, styles.default]}>
         {renderContent()}
       </View>
@@ -143,17 +144,17 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 0 + 10,
+    paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10,
     paddingBottom: 16,
     paddingHorizontal: 20,
   },
   default: {
-    backgroundColor: '#667eea',
+    backgroundColor: colors.primary,
   },
   minimal: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: colors.border,
   },
   glassOverlay: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -181,7 +182,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radii.md,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -196,14 +197,14 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: colors.surface,
     fontWeight: '500',
     marginHorizontal: 4,
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.surface,
     textAlign: 'center',
   },
   subtitle: {

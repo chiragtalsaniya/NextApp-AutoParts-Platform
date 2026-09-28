@@ -5,6 +5,7 @@ import { Home, User, ShoppingCart, ChartBar as BarChart3 } from 'lucide-react-na
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { colors } from '@/constants/theme';
 
 export default function TabLayout() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -58,10 +59,10 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#667eea',
-        tabBarInactiveTintColor: '#94a3b8',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.tabInactive,
         tabBarStyle: {
-          backgroundColor: Platform.OS === 'ios' ? 'transparent' : '#FFFFFF',
+          backgroundColor: Platform.OS === 'ios' ? 'transparent' : colors.surface,
           borderTopWidth: 0,
           height: Platform.OS === 'ios' ? 88 : 70,
           paddingTop: 8,

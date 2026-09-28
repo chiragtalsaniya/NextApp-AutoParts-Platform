@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { colors, radii } from '@/constants/theme';
 
 interface ModernCardProps {
   children: React.ReactNode;
@@ -15,7 +16,7 @@ export const ModernCard: React.FC<ModernCardProps> = ({
   style,
   onPress,
   variant = 'default',
-  gradientColors = ['#667eea', '#764ba2'],
+  gradientColors = [colors.primary, colors.primaryLight],
 }) => {
   const Component = onPress ? TouchableOpacity : View;
 
@@ -56,26 +57,25 @@ export const ModernCard: React.FC<ModernCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: 16,
     marginVertical: 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   gradient: {
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: radii.md,
+    padding: 16,
   },
   glass: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    backdropFilter: 'blur(20px)',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
